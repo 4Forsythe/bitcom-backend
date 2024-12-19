@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String      @id @default(cuid())
+  
+  name      String?
+  email     String      @unique
+  phone     String?
+  password  String
+  role      Boolean     @default(false)
+  isActive  Boolean     @default(false) @map("is_active")
+
+  code      UserCode?
+  cart      Cart[]
+  wishlist  Wishlist[]
+  orders    Order[]
+
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model UserCode {
+  id                String        @id @default(cuid())
+
+  code              String
+  userId            String        @unique
+  attempt           Int           @default(0)
+
+  lastAttemptAt     DateTime      @default(now()) @map("last_attempt_at")
+
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime      @default(now()) @map("created_at")
+  expiresAt         DateTime      @map("expires_at")
+
+  @@map("user_codes")
+}
+
+model Metrics {
+  id                 Int          @id  @default(autoincrement())
+
+  viewers            Int          @default(0)
+  views              Int          @default(0)
+
+  createdAt          DateTime     @default(now())   @map("created_at")
+  updatedAt          DateTime     @updatedAt        @map("updated_at")        
+
+  @@map("_metrics")
+}
+
+model CartItem {
+  id                 String       @id  @default(cuid())
+
+  productId          String       @map("product_id")
+  count              Int          @default(1)
+  cartId             String       @map("cart_id")
+
+  product            Product      @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cart               Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime     @default(now())   @map("created_at")
+  updatedAt          DateTime     @updatedAt        @map("updated_at")
+
+  @@map("cart_items")
+}
+
+model Cart {
+  id                 String       @id              @default(cuid())
+
+  items              CartItem[]
+  total              Int          @default(0)
+  token              String
+  userId             String?      @map("user_id")
+
+  user               User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime     @default(now())  @map("created_at")
+  updatedAt          DateTime     @updatedAt       @map("updated_at")
+
+  @@map("carts")
+}
+
+model WishlistItem {
+  id                 String       @id @default(cuid())
+
+  productId          String       @map("product_id")
+  wishlistId         String       @map("wishlist_id")
+
+  product            Product      @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  wishlist           Wishlist     @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  @@map("wishlist_items")
+}
+
+model Wishlist {
+  id          String    @id             @default(cuid())
+
+  items       WishlistItem[]
+  token       String
+  userId      String?   @map("user_id")
+
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt      @map("updated_at")
+
+  @@map("wishlists")
+}
+
+model Brand {
+  id          String     @id @default(cuid())
+
+  name        String
+  products    Product[]
+  discounts   Discount[]
+
+  @@map("brands")
+}
+
+model Device {
+  id          String     @id @default(cuid())
+
+  name        String
+  products    Product[]
+  discounts   Discount[]
+
+  @@map("devices")
+}
+
+model Discount {
+  id          String           @id @default(cuid())
+
+  dateBegin   DateTime?        @map("date_begin")
+  dateEnd     DateTime?        @map("date_end")
+  percent     Int
+
+  categoryId  String?          @map("category_id")
+  deviceId    String?          @map("device_id")
+  brandId     String?          @map("brand_id")
+
+  categories  ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  devices     Device?          @relation(fields: [deviceId], references: [id], onDelete: NoAction)
+  brands      Brand?           @relation(fields: [brandId], references: [id], onDelete: NoAction)
+
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@map("discounts")
+}
+
+model ProductCategory {
+  id          String           @id @default(cuid())
+
+  name        String
+  imageUrl    String?
+  products    Product[]
+  discounts   Discount[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id              String           @id @default(cuid())
+
+  name            String
+  description     String?
+  count           Int
+  price           Decimal          @db.Decimal(10,2)
+  barcode         String
+  model           String
+  imageUrl        String?
+  
+  cartItems       CartItem[]
+  wishlistItems   WishlistItem[]
+  orderItems      OrderItem[]
+
+  categoryId      String?          @map("category_id")
+  deviceId        String?          @map("device_id")
+  brandId         String?          @map("brand_id")
+
+  category        ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  device          Device?          @relation(fields: [deviceId], references: [id], onDelete: NoAction)
+  brand           Brand?           @relation(fields: [brandId], references: [id], onDelete: NoAction)
+
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  @@map("products")
+}
+
+model OrderItem {
+  id                 String       @id @default(cuid())
+
+  count              Int          @default(1)
+  productId          String       @map("product_id")
+  orderId            String       @map("order_id")
+
+  product            Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order              Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Order {
+  id                 String       @id @default(cuid())
+
+  items              OrderItem[]
+  total              Decimal      @db.Decimal(10,2)
+
+  customerName       String       @map("customer_name") 
+  customerEmail      String       @map("customer_email")
+  customerPhone      String       @map("customer_phone")
+  address            String?
+  comment            String?
+  token              String
+  userId             String?      @map("user_id")
+  paymentId          String?
+
+  status             String       @default("Обрабатывается")
+  gettingMethod      String       @map("getting_method")
+  paymentMethod      String       @map("payment_method")
+
+  user               User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt      @map("updated_at")
+
+  @@map("orders")
+}

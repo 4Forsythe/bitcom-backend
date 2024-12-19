@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+	<head>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			.body {
+				padding: 60px 0;
+				color: #242424;
+				background-color: #f7f7f7;
+				font-family: Roboto, 'Segoe UI', Oxygen, Ubuntu, 'Open Sans',
+					'Helvetica Neue', sans-serif;
+			}
+			.container {
+				max-width: 540px;
+				margin: 0 auto;
+				padding: 32px;
+				background-color: #ffffff;
+				box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+			}
+			.header {
+				margin-bottom: 12px;
+			}
+			.header h1 {
+				font-size: 24px;
+				font-weight: 700;
+				line-height: 2;
+				text-transform: uppercase;
+			}
+			.logo {
+				margin-top: 12px;
+				margin-bottom: 8px;
+				display: flex;
+			}
+			.logo span {
+				font-size: 40px;
+				font-weight: 900;
+				letter-spacing: 1px;
+				text-transform: uppercase;
+			}
+			.main {
+				padding-top: 12px;
+				padding-bottom: 12px;
+				border-top: 1px solid #e6e6e6;
+				border-bottom: 1px solid #e6e6e6;
+			}
+			.main p {
+				font-size: 15px;
+				line-height: 1.75;
+			}
+			.main b {
+				font-weight: 700;
+			}
+			.main a {
+				color: #ffffff;
+				text-decoration: none;
+			}
+			.block {
+				margin: 12px 0;
+				display: block;
+			}
+			.block-center {
+				text-align: center;
+			}
+			hr {
+				max-width: 25%;
+				margin: 0 auto;
+				border: 1px solid #e6e6e6;
+			}
+			.code {
+				padding: 16px 24px;
+				font-size: 32px;
+				font-weight: 700;
+				letter-spacing: 0.35rem;
+				display: block;
+				text-align: center;
+				background-color: #f0f0f0;
+			}
+			.link {
+				margin: 12px 0;
+				padding: 14px 28px;
+				display: inline-block;
+				font-size: 15px;
+				font-weight: 500;
+				background-color: #ff0000;
+			}
+			.footer {
+				margin-top: 12px;
+			}
+			.footer p {
+				color: #9d9d9d;
+				font-size: 13px;
+				line-height: 1.5;
+			}
+		</style>
+	</head>
+	<body class="body">
+		<div class="container">
+			<header class="header">
+				<div class="logo">
+					<span>БИТКОМ</span>
+				</div>
+				<h1>Подтвердите свой E-mail</h1>
+			</header>
+			<div class="main">
+				<div class="block">
+					<p>Спасибо за регистрацию!</p>
+					<p>
+						Чтобы продолжить настройку учетной записи, подтвердите, что это ваш
+						адрес электронной почты
+					</p>
+				</div>
+				<div class="block">
+					<span class="code">{{code}}</span>
+				</div>
+				<hr />
+				<div class="block block-center">
+					<p>или по ссылке ниже</p>
+					<a
+						class="link"
+						href="{{returnUrl}}"
+						>Подтвердить Email</a
+					>
+				</div>
+				<hr />
+				<div class="block">
+					<p>Это письмо было отправлено автоматически, не отвечайте на него</p>
+				</div>
+			</div>
+			<footer class="footer">
+				<p>С уважением, команда БитКом</p>
+			</footer>
+		</div>
+	</body>
+</html>
