@@ -4,9 +4,10 @@ import {
 	UseInterceptors,
 	UploadedFiles,
 	BadRequestException,
-	UseGuards
+	UseGuards,
+	UploadedFile
 } from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 
 import { BasicAuthGuard } from 'src/auth.guard'
 import { UploadService } from './upload.service'
@@ -15,10 +16,19 @@ import { UploadService } from './upload.service'
 export class UploadController {
 	constructor(private readonly uploadService: UploadService) {}
 
-	@Post()
+	@Post('single')
 	@UseGuards(BasicAuthGuard)
 	@UseInterceptors(FileInterceptor('file'))
-	create(@UploadedFiles() files: Express.Multer.File[]) {
+	create(@UploadedFile() file: Express.Multer.File) {
+		if (!file) throw new BadRequestException('Недостаточно файлов для загрузки')
+
+		return true
+	}
+
+	@Post('multiple')
+	@UseGuards(BasicAuthGuard)
+	@UseInterceptors(FilesInterceptor('file'))
+	async uploadMultipleFiles(@UploadedFiles() files: Express.Multer.File[]) {
 		if (!files)
 			throw new BadRequestException('Недостаточно файлов для загрузки')
 
