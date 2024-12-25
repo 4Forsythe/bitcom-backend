@@ -1,4 +1,11 @@
-import { IsInt, IsNumber, IsString, IsOptional, IsUrl } from 'class-validator'
+import {
+	IsInt,
+	IsNumber,
+	IsString,
+	IsOptional,
+	IsUrl,
+	IsArray
+} from 'class-validator'
 
 export class CreateProductDto {
 	@IsString()
@@ -18,8 +25,9 @@ export class CreateProductDto {
 	@IsNumber()
 	price: number
 
+	@IsArray()
 	@IsString()
-	barcode: string
+	barcode: string[]
 
 	@IsString()
 	model: string

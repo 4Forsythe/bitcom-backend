@@ -128,7 +128,8 @@ export class OrderService {
 					items: order.items.map((item) => {
 						return {
 							count: item.count,
-							name: item.product.name
+							name: item.product.name,
+							barcode: item.product.barcode.join(', ')
 						}
 					})
 				}

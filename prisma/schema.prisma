@@ -54,7 +54,7 @@ model Metrics {
   createdAt          DateTime     @default(now())   @map("created_at")
   updatedAt          DateTime     @updatedAt        @map("updated_at")        
 
-  @@map("_metrics")
+  @@map("metrics")
 }
 
 model CartItem {
@@ -178,7 +178,7 @@ model Product {
   description     String?
   count           Int
   price           Decimal          @db.Decimal(10,2)
-  barcode         String
+  barcode         String[]
   model           String
   imageUrl        String?
   

@@ -30,7 +30,7 @@ async function up() {
 			name: faker.commerce.productName(),
 			count: faker.number.int({ min: 0, max: 50 }),
 			price: Number(faker.commerce.price()).toFixed(2),
-			barcode: faker.string.nanoid(9),
+			barcode: [faker.string.nanoid(9)],
 			model: faker.commerce.product()
 			// imageUrl: faker.image.url(),
 			// categoryId: `00${faker.number.int}`,

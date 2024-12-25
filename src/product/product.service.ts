@@ -88,7 +88,16 @@ export class ProductService {
 			}
 		})
 
-		return { items: products, count: products.length }
+		const count = await this.prisma.product.count({
+			where: {
+				OR: whereOr,
+				...(categoryId && { categoryId }),
+				...(deviceId && { deviceId }),
+				...(brandId && { brandId })
+			}
+		})
+
+		return { items: products, count }
 	}
 
 	async getSimilar(id: string, params?: { take: number }) {
@@ -114,7 +123,18 @@ export class ProductService {
 
 		const items = products.filter((item) => item.id !== product.id)
 
-		return { items, count: items.length }
+		const count = await this.prisma.product.count({
+			where: {
+				OR: [
+					{ name: { contains: product.name } },
+					product.categoryId ? { categoryId: product.categoryId } : {},
+					product.deviceId ? { deviceId: product.deviceId } : {},
+					product.brandId ? { brandId: product.brandId } : {}
+				]
+			}
+		})
+
+		return { items, count }
 	}
 
 	async getByIds(ids: string[]) {
