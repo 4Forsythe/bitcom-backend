@@ -9,7 +9,6 @@ import {
 
 export class CreateProductDto {
 	@IsString()
-	@IsOptional()
 	id: string
 
 	@IsString()

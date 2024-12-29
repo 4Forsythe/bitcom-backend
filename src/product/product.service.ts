@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { Injectable, NotFoundException } from '@nestjs/common'
 
 import { PrismaService } from 'src/prisma.service'
@@ -50,24 +51,15 @@ export class ProductService {
 	}
 
 	async getAll(params?: ProductParamsDto) {
-		const {
-			name,
-			categoryId,
-			deviceId,
-			brandId,
-			modelId,
-			sortBy,
-			orderBy,
-			take,
-			skip
-		} = params
+		const { name, categoryId, deviceId, brandId, sortBy, orderBy, take, skip } =
+			params
 
 		const { ru, en } = switchKeyboard(name || '')
 
 		const whereOr = [
 			...(name ? [{ name: { contains: name } }] : []),
-			{ name: { contains: ru } },
-			{ name: { contains: en } }
+			{ name: { contains: ru, mode: Prisma.QueryMode.insensitive } },
+			{ name: { contains: en, mode: Prisma.QueryMode.insensitive } }
 		]
 
 		const products = await this.prisma.product.findMany({

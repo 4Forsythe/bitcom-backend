@@ -72,11 +72,13 @@ const enLayout = {
 
 export const switchKeyboard = (input: string): { en: string; ru: string } => {
 	const ru = input
+		.toLowerCase()
 		.split('')
 		.map((char) => ruLayout[char] || char)
 		.join('')
 
 	const en = input
+		.toLowerCase()
 		.split('')
 		.map((char) => enLayout[char] || char)
 		.join('')
