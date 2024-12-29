@@ -1,1 +1,13 @@
-export class CreateProductCategoryDto {}
+import { IsString, IsOptional } from 'class-validator'
+
+export class CreateProductCategoryDto {
+	@IsString()
+	id: string
+
+	@IsString()
+	name: string
+
+	@IsString()
+	@IsOptional()
+	imageUrl: string
+}
