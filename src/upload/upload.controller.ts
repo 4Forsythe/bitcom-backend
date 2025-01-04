@@ -11,6 +11,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 
 import { BasicAuthGuard } from 'src/auth.guard'
 import { UploadService } from './upload.service'
+import { SharpPipe } from './sharp.pipe'
 
 @Controller('upload')
 export class UploadController {
@@ -19,7 +20,7 @@ export class UploadController {
 	@Post('single')
 	@UseGuards(BasicAuthGuard)
 	@UseInterceptors(FileInterceptor('file'))
-	create(@UploadedFile() file: Express.Multer.File) {
+	async uploadSingle(@UploadedFile(SharpPipe) file: Express.Multer.File) {
 		if (!file) throw new BadRequestException('Недостаточно файлов для загрузки')
 
 		return true
@@ -28,7 +29,7 @@ export class UploadController {
 	@Post('multiple')
 	@UseGuards(BasicAuthGuard)
 	@UseInterceptors(FilesInterceptor('file'))
-	async uploadMultipleFiles(@UploadedFiles() files: Express.Multer.File[]) {
+	async uploadMultiple(@UploadedFiles(SharpPipe) files: Express.Multer.File[]) {
 		if (!files)
 			throw new BadRequestException('Недостаточно файлов для загрузки')
 
