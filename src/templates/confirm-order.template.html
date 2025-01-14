@@ -52,7 +52,7 @@
 				border-bottom: 1px solid #e6e6e6;
 			}
 			.main p {
-				font-size: 15px;
+				font-size: 14px;
 				line-height: 1.75;
 			}
 			.main b {
@@ -73,15 +73,6 @@
 				max-width: 25%;
 				margin: 0 auto;
 				border: 1px solid #e6e6e6;
-			}
-			.code {
-				padding: 16px 24px;
-				font-size: 32px;
-				font-weight: 700;
-				letter-spacing: 0.35rem;
-				display: block;
-				text-align: center;
-				background-color: #f0f0f0;
 			}
 			.link {
 				margin: 12px 0;
@@ -110,31 +101,44 @@
 						alt="БитКом"
 					/>
 				</div>
-				<h1>Подтвердите свой E-mail</h1>
+				<h1>Подтвердите свой заказ</h1>
 			</header>
 			<div class="main">
 				<div class="block">
-					<p>Спасибо за регистрацию!</p>
+					<b class="block">Благодарим вас за покупку!</b>
 					<p>
-						Чтобы продолжить настройку учетной записи, подтвердите, что это ваш
-						адрес электронной почты
+						К сожалению, мы заметили, что ваша учетная запись не была
+						активирована, поэтому требуется дополнительная верификация перед
+						оформлением заказа.
 					</p>
 				</div>
-				<div class="block">
-					<span class="code">{{code}}</span>
-				</div>
 				<hr />
-				<div class="block block-center">
-					<p>или по ссылке ниже</p>
-					<a
-						class="link"
-						href="{{returnUrl}}"
-						>Подтвердить Email</a
+				<div class="block">
+					<b class="block">Ваш заказ:</b>
+					<span class="small-block"
+						>от {{createdAt}} на сумму {{total}} руб.</span
 					>
 				</div>
 				<hr />
 				<div class="block">
-					<p>Это письмо было отправлено автоматически, не отвечайте на него</p>
+					<b class="block">Список товаров:</b>
+					{{#each items}}
+					<p class="small-block">{{name}} — {{count}} шт.</p>
+					{{/each}}
+				</div>
+				<hr />
+				<div class="block block-center">
+					<a
+						class="link"
+						href="{{returnUrl}}"
+						>Подтвердить заказ</a
+					>
+				</div>
+				<div class="block">
+					<p>
+						Не переживайте, это всего лишь формальность, чтобы мы знали, что вы
+						настоящий человек!
+					</p>
 				</div>
 			</div>
 			<footer class="footer">

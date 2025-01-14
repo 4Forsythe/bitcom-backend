@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 
 import { hash } from 'argon2'
+import { addMinutes } from 'date-fns'
 
 import { PrismaService } from 'src/prisma.service'
 import type { CreateUserDto } from './dto/create-user.dto'
@@ -14,6 +15,26 @@ import type { UpdateUserDto } from './dto/update-user.dto'
 @Injectable()
 export class UserService {
 	constructor(private prisma: PrismaService) {}
+
+	async generateCode(userId: string) {
+		const code = Math.floor(100000 + Math.random() * 900000)
+
+		await this.prisma.userCode.upsert({
+			where: { userId },
+			create: {
+				code: String(code),
+				userId,
+				expiresAt: addMinutes(new Date(), 60)
+			},
+			update: {
+				code: String(code),
+				userId,
+				expiresAt: addMinutes(new Date(), 60)
+			}
+		})
+
+		return code
+	}
 
 	async create(dto: CreateUserDto) {
 		const user = await this.prisma.user.findUnique({

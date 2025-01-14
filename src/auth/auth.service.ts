@@ -63,7 +63,7 @@ export class AuthService {
 
 		if (!user) throw new BadRequestException('Пользователь не найден')
 
-		const code = await this.generateCode(user.id)
+		const code = await this.userService.generateCode(user.id)
 
 		await sendMail({
 			to: email,
@@ -76,26 +76,6 @@ export class AuthService {
 				}
 			}
 		})
-	}
-
-	async generateCode(userId: string) {
-		const code = Math.floor(100000 + Math.random() * 900000)
-
-		await this.prisma.userCode.upsert({
-			where: { userId },
-			create: {
-				code: String(code),
-				userId,
-				expiresAt: addMinutes(new Date(), 60)
-			},
-			update: {
-				code: String(code),
-				userId,
-				expiresAt: addMinutes(new Date(), 60)
-			}
-		})
-
-		return code
 	}
 
 	async checkCooldown(userId: string) {

@@ -8,6 +8,8 @@ import {
 
 import { Request } from 'express'
 
+import { sendMail } from 'src/lib/send-mail'
+
 import {
 	CreateOrderDto,
 	OrderPaymentMethod,
@@ -19,7 +21,6 @@ import { CartService } from 'src/cart/cart.service'
 import { PaymentService } from 'src/payment/payment.service'
 import { UpdateOrderDto } from './dto/update-order.dto'
 import { OrderParamsDto } from './dto/order-params.dto'
-import { sendMail } from 'src/lib/send-mail'
 
 @Injectable()
 export class OrderService {
@@ -35,6 +36,7 @@ export class OrderService {
 	EMAIL_USER = process.env.EMAIL_USER
 
 	async create(req: Request, userId: string, dto: CreateOrderDto) {
+		const user = await this.userService.getOne(userId)
 		const cart = await this.cartService.getAll(req, userId)
 
 		if (cart.items.length === 0) {
@@ -88,7 +90,17 @@ export class OrderService {
 			}))
 		})
 
+		await this.cartService.clear(req, userId)
+
 		if (dto.paymentMethod === OrderPaymentMethod.CASH) {
+			if (!user.isActive) {
+				await this.update(order.id, {
+					status: OrderStatus.WAITING
+				})
+
+				return this.sendCode(user.email, order.id)
+			}
+
 			return this.update(order.id, {
 				status: OrderStatus.CREATED
 			})
@@ -116,6 +128,131 @@ export class OrderService {
 			})
 		}
 
+		const response = await this.prisma.order.findUnique({
+			where: { id: order.id }
+		})
+
+		if (response.status === OrderStatus.CREATED) {
+			await sendMail({
+				to: this.EMAIL_USER,
+				subject: 'Новый заказ',
+				html: {
+					path: 'src/templates/create-order.template.html',
+					replacements: {
+						customerName,
+						customerEmail,
+						customerPhone,
+						items: order.items.map((item) => {
+							return {
+								count: item.count,
+								name: item.product.name,
+								barcode: item.product.barcode.join(', ')
+							}
+						})
+					}
+				}
+			})
+		}
+
+		return response
+	}
+
+	async sendCode(email: string, orderId: string) {
+		const user = await this.prisma.user.findUnique({
+			where: { email }
+		})
+
+		if (!user) throw new BadRequestException('Пользователь не найден')
+
+		const order = await this.prisma.order.findUnique({
+			where: { id: orderId },
+			include: {
+				items: { include: { product: true } }
+			}
+		})
+
+		if (!order) throw new NotFoundException('Заказ не найден')
+
+		if (order.status === OrderStatus.CREATED)
+			throw new NotFoundException('Заказ уже подтвержден')
+
+		const code = await this.userService.generateCode(user.id)
+
+		await sendMail({
+			to: email,
+			subject: 'Подтвердите ваш заказ',
+			html: {
+				path: 'src/templates/confirm-order.template.html',
+				replacements: {
+					total: order.total,
+					items: order.items.map((item) => {
+						return {
+							count: item.count,
+							name: item.product.name
+						}
+					}),
+					createdAt: order.createdAt,
+					returnUrl: `${process.env.BASE_URL}/order/verify?code=${code}&userId=${user.id}&orderId=${orderId}`
+				}
+			}
+		})
+	}
+
+	async verify(code: string, userId: string, orderId: string) {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId }
+		})
+
+		const userCode = await this.prisma.userCode.findUnique({
+			where: { userId }
+		})
+
+		if (!user) throw new BadRequestException('Пользователь не найден')
+		if (!userCode) throw new BadRequestException('Код подтверждения не найден')
+
+		const isValidCode = await this.prisma.userCode.findUnique({
+			where: {
+				code,
+				userId: user.id,
+				expiresAt: {
+					gt: new Date()
+				}
+			}
+		})
+
+		if (!isValidCode)
+			throw new BadRequestException('Введен неверный код подтверждения')
+
+		await this.prisma.userCode.delete({
+			where: { id: userCode.id }
+		})
+
+		if (!user.isActive) {
+			await this.prisma.user.update({
+				where: { id: user.id },
+				data: {
+					isActive: true
+				}
+			})
+		}
+
+		const order = await this.prisma.order.findUnique({
+			where: { id: orderId },
+			include: {
+				items: { include: { product: true } }
+			}
+		})
+
+		if (!order) {
+			throw new BadRequestException('Заказ потерялся или утратил актуальность.')
+		}
+
+		await this.update(orderId, {
+			status: OrderStatus.CREATED
+		})
+
+		const { customerName, customerEmail, customerPhone } = order
+
 		await sendMail({
 			to: this.EMAIL_USER,
 			subject: 'Новый заказ',
@@ -135,6 +272,8 @@ export class OrderService {
 				}
 			}
 		})
+
+		return order
 	}
 
 	async getAll(userId: string, params?: OrderParamsDto) {
@@ -148,11 +287,28 @@ export class OrderService {
 			skip: +skip || 0
 		})
 
+		const count = await this.prisma.order.count({
+			where: { userId }
+		})
+
 		if (!orders) {
 			return { items: [], count: 0 }
 		}
 
-		return { items: orders, count: orders.length }
+		return { items: orders, count }
+	}
+
+	async getOne(id: string, userId: string) {
+		const order = await this.prisma.order.findUnique({
+			where: { id, userId },
+			include: { items: { include: { product: true } } }
+		})
+
+		if (!order) {
+			throw new NotFoundException('Заказ не найден')
+		}
+
+		return order
 	}
 
 	async update(id: string, dto: UpdateOrderDto) {
@@ -176,6 +332,9 @@ export class OrderService {
 				status: dto?.status,
 				gettingMethod: dto?.gettingMethod,
 				paymentMethod: dto?.paymentMethod
+			},
+			include: {
+				items: { include: { product: true } }
 			}
 		})
 	}
