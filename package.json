@@ -1,6 +1,6 @@
 {
 	"name": "bitcom-server",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": true,
 	"license": "UNLICENSED",
 	"scripts": {
@@ -32,7 +32,6 @@
 		"@prisma/client": "^5.19.1",
 		"argon2": "^0.40.3",
 		"axios": "^1.7.2",
-		"cheerio": "^1.0.0-rc.12",
 		"compression": "^1.7.5",
 		"cookie-parser": "^1.4.6",
 		"date-fns": "^3.6.0",
