@@ -13,7 +13,7 @@ dotenv.config()
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule)
 
-	app.setGlobalPrefix('api')
+	app.setGlobalPrefix(process.env.GLOBAL_PREFIX)
 
 	app.use(helmet())
 	app.use(compression())
@@ -31,6 +31,6 @@ async function bootstrap() {
 
 	app.useGlobalPipes(new ValidationPipe())
 
-	await app.listen(5000)
+	await app.listen(process.env.PORT)
 }
 bootstrap()
