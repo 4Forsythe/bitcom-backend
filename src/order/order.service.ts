@@ -33,7 +33,7 @@ export class OrderService {
 	) {}
 
 	SITE_BASE_URL = process.env.SITE_BASE_URL
-	EMAIL_USER = process.env.EMAIL_USER
+	RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL
 
 	async create(req: Request, userId: string, dto: CreateOrderDto) {
 		const user = await this.userService.getOne(userId)
@@ -134,7 +134,7 @@ export class OrderService {
 
 		if (response.status === OrderStatus.CREATED) {
 			await sendMail({
-				to: this.EMAIL_USER,
+				to: this.RECIPIENT_EMAIL,
 				subject: 'Новый заказ',
 				html: {
 					path: 'src/templates/create-order.template.html',
@@ -254,7 +254,7 @@ export class OrderService {
 		const { customerName, customerEmail, customerPhone } = order
 
 		await sendMail({
-			to: this.EMAIL_USER,
+			to: this.RECIPIENT_EMAIL,
 			subject: 'Новый заказ',
 			html: {
 				path: 'src/templates/create-order.template.html',
