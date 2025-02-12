@@ -126,7 +126,7 @@ export class ProductService {
 			}
 		})
 
-		return { items, count }
+		return { items, count: count > 1 ? count - 1 : count }
 	}
 
 	async getByIds(ids: string[]) {
