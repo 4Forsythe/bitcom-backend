@@ -101,7 +101,7 @@ export class OrderService {
 				return this.sendCode(user.email, order.id)
 			}
 
-			return this.update(order.id, {
+			await this.update(order.id, {
 				status: OrderStatus.CREATED
 			})
 		}
@@ -114,7 +114,7 @@ export class OrderService {
 				vat_code: 4
 			}))
 
-			return this.paymentService.create({
+			await this.paymentService.create({
 				amount: { value: total, currency: 'RUB' },
 				description: `Оплата заказа №-${order.id}`,
 				customer: {
