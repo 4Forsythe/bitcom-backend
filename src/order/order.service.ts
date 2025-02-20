@@ -43,6 +43,16 @@ export class OrderService {
 			throw new BadRequestException('В вашей корзине недостаточно товаров')
 		}
 
+		const hasOrders = await this.prisma.order.count({
+			where: {
+				AND: [{ userId }, { status: OrderStatus.CREATED }]
+			}
+		})
+
+		if (hasOrders >= 10) {
+			throw new BadRequestException('TOO_MANY_ORDERS')
+		}
+
 		const carts = cart.items.map((item) => ({
 			count: item.count,
 			price: Number(item.product.price),
@@ -91,6 +101,10 @@ export class OrderService {
 		})
 
 		await this.cartService.clear(req, userId)
+
+		if (customerPhone !== user.phone) {
+			await this.userService.update(userId, { phone: customerPhone })
+		}
 
 		if (dto.paymentMethod === OrderPaymentMethod.CASH) {
 			if (!user.isActive) {
