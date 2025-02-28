@@ -1,10 +1,11 @@
 import {
 	IsString,
+	IsBoolean,
 	IsOptional,
 	MaxLength,
+	MinLength,
 	IsEmail,
-	IsPhoneNumber,
-	MinLength
+	IsPhoneNumber
 } from 'class-validator'
 
 export class CreateUserDto {
@@ -24,5 +25,9 @@ export class CreateUserDto {
 	@IsOptional()
 	@MinLength(5)
 	@MaxLength(32)
-	password: string
+	password?: string
+
+	@IsBoolean()
+	@IsOptional()
+	isSubscribed?: boolean
 }

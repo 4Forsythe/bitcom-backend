@@ -112,7 +112,8 @@ export class UserService {
 			name: dto.name,
 			email: dto.email,
 			phone: dto.phone,
-			password: dto.password
+			password: dto.password,
+			isSubscribed: dto.isSubscribed
 		}
 
 		if (dto.password) {

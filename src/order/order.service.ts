@@ -143,8 +143,17 @@ export class OrderService {
 		}
 
 		const response = await this.prisma.order.findUnique({
-			where: { id: order.id }
+			where: { id: order.id },
+			include: {
+				items: { include: { product: { include: { category: true } } } }
+			}
 		})
+
+		const items = response.items.map((item) => ({
+			count: item.count,
+			name: item.product.name,
+			barcode: item.product.barcode.join(', ')
+		}))
 
 		if (response.status === OrderStatus.CREATED) {
 			await sendMail({
@@ -156,16 +165,31 @@ export class OrderService {
 						customerName,
 						customerEmail,
 						customerPhone,
-						items: order.items.map((item) => {
-							return {
-								count: item.count,
-								name: item.product.name,
-								barcode: item.product.barcode.join(', ')
-							}
-						})
+						gettingMethod,
+						paymentMethod,
+						items: items
 					}
 				}
 			})
+
+			if (user.isSubscribed) {
+				await sendMail({
+					to: user.email,
+					subject: 'Ваш заказ создан',
+					html: {
+						path: 'src/templates/order-notification.template.html',
+						replacements: {
+							total,
+							customerName,
+							customerPhone,
+							gettingMethod,
+							paymentMethod,
+							items: items,
+							createdAt: response.createdAt.toLocaleDateString()
+						}
+					}
+				})
+			}
 		}
 
 		return response
@@ -296,7 +320,9 @@ export class OrderService {
 		const orders = await this.prisma.order.findMany({
 			where: { userId },
 			orderBy: { createdAt: 'desc' },
-			include: { items: { include: { product: true } } },
+			include: {
+				items: { include: { product: { include: { category: true } } } }
+			},
 			take: +take || 10,
 			skip: +skip || 0
 		})
@@ -315,7 +341,9 @@ export class OrderService {
 	async getOne(id: string, userId: string) {
 		const order = await this.prisma.order.findUnique({
 			where: { id, userId },
-			include: { items: { include: { product: true } } }
+			include: {
+				items: { include: { product: { include: { category: true } } } }
+			}
 		})
 
 		if (!order) {
@@ -348,7 +376,7 @@ export class OrderService {
 				paymentMethod: dto?.paymentMethod
 			},
 			include: {
-				items: { include: { product: true } }
+				items: { include: { product: { include: { category: true } } } }
 			}
 		})
 	}
