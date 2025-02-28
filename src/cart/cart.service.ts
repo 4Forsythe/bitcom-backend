@@ -22,7 +22,7 @@ export class CartService {
 	) {}
 
 	CART_TOKEN_NAME = 'CART_TOKEN'
-	EXPIRE_DAY_CART_TOKEN = 30
+	EXPIRE_DAY_CART_TOKEN = 14
 
 	async create(
 		req: Request,
@@ -136,7 +136,10 @@ export class CartService {
 		const cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 
@@ -154,7 +157,9 @@ export class CartService {
 
 		const cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
-			include: { items: { include: { product: true } } }
+			include: {
+				items: { include: { product: { include: { category: true } } } }
+			}
 		})
 
 		if (!cart) throw new NotFoundException('Корзина пуста')
@@ -196,7 +201,10 @@ export class CartService {
 			where: { id: cart.id },
 			data: { userId, total },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 	}
@@ -213,7 +221,10 @@ export class CartService {
 		return this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 	}
@@ -222,21 +233,34 @@ export class CartService {
 		const token = req.cookies[this.CART_TOKEN_NAME]
 
 		if (!userId && !token) {
-			return { items: [], total: 0 }
+			throw new NotFoundException('Корзина не найдена')
 		}
 
 		const cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 
 		if (cart && cart.items.length > 0) {
-			return this.prisma.cart.delete({
+			await this.prisma.cartItem.deleteMany({
+				where: { cartId: cart.id }
+			})
+
+			return this.prisma.cart.update({
 				where: { id: cart.id },
+				data: {
+					total: 0
+				},
 				include: {
-					items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+					items: {
+						include: { product: { include: { category: true } } },
+						orderBy: { createdAt: 'desc' }
+					}
 				}
 			})
 		}

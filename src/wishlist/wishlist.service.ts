@@ -17,7 +17,7 @@ export class WishlistService {
 	) {}
 
 	WISHLIST_TOKEN_NAME = 'WISHLIST_TOKEN'
-	EXPIRE_DAY_WISHLIST_TOKEN = 30
+	EXPIRE_DAY_WISHLIST_TOKEN = 14
 
 	async create(
 		req: Request,
@@ -84,7 +84,10 @@ export class WishlistService {
 		return this.prisma.wishlist.findFirst({
 			where: { id: wishlist.id },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 	}
@@ -110,7 +113,10 @@ export class WishlistService {
 		const wishlist = await this.prisma.wishlist.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 
@@ -124,7 +130,9 @@ export class WishlistService {
 	async getOne(id: string, userId: string, token: string) {
 		const wishlist = await this.prisma.wishlist.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
-			include: { items: { include: { product: true } } }
+			include: {
+				items: { include: { product: { include: { category: true } } } }
+			}
 		})
 
 		if (!wishlist) throw new NotFoundException('Корзина пуста')
@@ -148,7 +156,10 @@ export class WishlistService {
 		return this.prisma.wishlist.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 	}
