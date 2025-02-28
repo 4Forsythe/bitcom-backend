@@ -8,22 +8,23 @@ datasource db {
 }
 
 model User {
-  id        String      @id @default(cuid())
+  id            String      @id @default(cuid())
   
-  name      String?
-  email     String      @unique
-  phone     String?
-  password  String
-  role      Boolean     @default(false)
-  isActive  Boolean     @default(false) @map("is_active")
+  name          String?
+  email         String      @unique
+  phone         String?
+  password      String
+  role          Boolean     @default(false)
+  isActive      Boolean     @default(false) @map("is_active")
+  isSubscribed  Boolean     @default(true)  @map("is_subscribed")
 
-  code      UserCode?
-  cart      Cart[]
-  wishlist  Wishlist[]
-  orders    Order[]
+  code          UserCode?
+  cart          Cart[]
+  wishlist      Wishlist[]
+  orders        Order[]
 
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt      @map("updated_at")
 
   @@map("users")
 }
