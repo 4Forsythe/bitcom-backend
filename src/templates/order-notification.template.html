@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ru">
+	<head>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			.body {
+				padding: 60px 0;
+				color: #242424;
+				background-color: #f7f7f7;
+				font-family: Roboto, 'Segoe UI', Oxygen, Ubuntu, 'Open Sans',
+					'Helvetica Neue', sans-serif;
+			}
+			.container {
+				max-width: 540px;
+				margin: 0 auto;
+				padding: 32px;
+				background-color: #ffffff;
+				box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+			}
+			.header {
+				margin-bottom: 12px;
+			}
+			.header h1 {
+				font-size: 24px;
+				font-weight: 700;
+				line-height: 2;
+				text-transform: uppercase;
+			}
+			.logo {
+				margin-top: 12px;
+				margin-bottom: 8px;
+				display: flex;
+			}
+			.logo img {
+				width: auto;
+				height: 64px;
+			}
+			.logo span {
+				font-size: 40px;
+				font-weight: 900;
+				letter-spacing: 1px;
+				text-transform: uppercase;
+			}
+			.main {
+				padding-top: 12px;
+				padding-bottom: 12px;
+				border-top: 1px solid #e6e6e6;
+				border-bottom: 1px solid #e6e6e6;
+			}
+			.main p {
+				font-size: 15px;
+				line-height: 1.75;
+			}
+			.main b {
+				font-weight: 700;
+			}
+			.main a {
+				text-decoration: none;
+			}
+			.block {
+				margin: 12px 0;
+				display: block;
+			}
+			.block a {
+				font-size: 14px;
+				color: #ff0000;
+			}
+			.small-block {
+				margin: 5px 0;
+				display: block;
+			}
+			.block-center {
+				text-align: center;
+			}
+			hr {
+				max-width: 25%;
+				border: 1px solid #e6e6e6;
+			}
+			.background {
+				padding: 16px 24px;
+				display: block;
+				background-color: #f0f0f0;
+			}
+			.background p {
+				font-size: 15px;
+				font-weight: 400;
+			}
+			.footer {
+				margin-top: 12px;
+			}
+			.footer p {
+				color: #9d9d9d;
+				font-size: 13px;
+				line-height: 1.5;
+			}
+			.footer b {
+				font-weight: 500;
+				line-height: 1.5;
+			}
+			.footer .block {
+				margin: 12px 0;
+			}
+			.footer .small-block {
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body class="body">
+		<div class="container">
+			<header class="header">
+				<a
+					class="logo"
+					href="https://bitcom63.ru"
+				>
+					<img
+						src="https://bitcom63.ru/static/bitcom-banner.png"
+						alt="БитКом"
+					/>
+				</a>
+				<h1>Ваш заказ создан</h1>
+			</header>
+			<div class="main">
+				<div class="block">
+					<p class="block">
+						Мы получили всю необходимую информацию и приступили к сборке вашего
+						заказа!
+					</p>
+				</div>
+				<hr />
+				<div class="block">
+					<b class="block">Товары под заказ:</b>
+					<div class="block background">
+						{{#each items}}
+						<p class="small-block">({{barcode}}) {{name}} — {{count}} шт.</p>
+						{{/each}}
+					</div>
+				</div>
+				<hr />
+				<div class="block">
+					<b class="block">Доставка:</b>
+					<span class="small-block">{{gettingMethod}}</span>
+				</div>
+				<div class="block">
+					<b class="block">Оплата:</b>
+					<span class="small-block">{{paymentMethod}},</span>
+					{{#if total includeZero=true}}
+					<span class="small-block"
+						>Итоговая стоимость после уточнения деталей</span
+					>
+					{{else}}
+					<span class="small-block">{{total}} руб.</span>
+					{{/if}}
+				</div>
+				<div class="block">
+					<b class="block">Получатель:</b>
+					<span class="small-block">{{customerName}}</span>
+					<span class="small-block">{{customerPhone}}</span>
+				</div>
+				<div class="block">
+					<b class="block">Дата:</b>
+					<span class="small-block">{{createdAt}}</span>
+				</div>
+				<hr />
+				<div class="block">
+					<p>
+						Ваш заказ будет собран в течение нескольких рабочих дней, наши
+						менеджеры свяжутся с вами при первой возможности
+					</p>
+				</div>
+			</div>
+			<footer class="footer">
+				<div class="block">
+					<span class="small-block"><b>+7 (8482) 41 12-12</b></span>
+					<span class="small-block"><b>+7 (927) 783 90-22</b></span>
+				</div>
+				<div class="block">
+					<a
+						class="small-block"
+						href="https://2gis.ru/togliatti/firm/70000001081529030?m=49.269707%2C53.534406%2F18"
+						>Как добраться до офиса?</a
+					>
+				</div>
+				<p>С уважением, команда БитКом</p>
+			</footer>
+		</div>
+	</body>
+</html>

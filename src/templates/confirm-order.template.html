@@ -118,9 +118,13 @@
 				<hr />
 				<div class="block">
 					<b class="block">Ваш заказ:</b>
+					{{#if total includeZero=true}}
 					<span class="small-block"
-						>от {{createdAt}} на сумму {{total}} руб.</span
+						>Итоговая стоимость после уточнения деталей</span
 					>
+					{{else}}
+					<span class="small-block">На сумму {{total}} руб.</span>
+					{{/if}}
 				</div>
 				<hr />
 				<div class="block">
