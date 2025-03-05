@@ -25,7 +25,7 @@ export class CreateProductDto {
 	price: number
 
 	@IsArray()
-	@IsString()
+	@IsString({ each: true })
 	barcode: string[]
 
 	@IsString()
