@@ -1,4 +1,4 @@
-import { Injectable, PipeTransform } from '@nestjs/common'
+import { Injectable, PipeTransform, BadRequestException } from '@nestjs/common'
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -11,6 +11,8 @@ export class SharpPipe
 	implements PipeTransform<Express.Multer.File, Promise<string>>
 {
 	async transform(file: Express.Multer.File): Promise<string> {
+		if (!file) throw new BadRequestException('Недостаточно файлов для загрузки')
+
 		if (imageMimes.includes(file.mimetype)) {
 			const fileName = file.originalname
 			const fileBuffer = await fs.readFile(file.path)
