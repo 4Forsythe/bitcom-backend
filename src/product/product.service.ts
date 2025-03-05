@@ -19,11 +19,11 @@ export class ProductService {
 				count: item.count,
 				price: item.price,
 				barcode: item.barcode,
-				model: item.model,
-				imageUrl: item.imageUrl,
-				categoryId: item.categoryId,
-				deviceId: item.deviceId,
-				brandId: item.brandId
+				model: item.model || item.name,
+				imageUrl: item.imageUrl || undefined,
+				categoryId: item.categoryId || undefined,
+				deviceId: item.deviceId || undefined,
+				brandId: item.brandId || undefined
 			}
 		})
 

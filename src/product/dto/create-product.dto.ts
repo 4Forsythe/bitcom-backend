@@ -31,19 +31,19 @@ export class CreateProductDto {
 	@IsString()
 	model: string
 
-	@IsUrl()
+	@IsString()
 	@IsOptional()
-	imageUrl: string
+	imageUrl?: string
 
 	@IsString()
 	@IsOptional()
-	categoryId: string
+	categoryId?: string
 
 	@IsString()
 	@IsOptional()
-	deviceId: string
+	deviceId?: string
 
 	@IsString()
 	@IsOptional()
-	brandId: string
+	brandId?: string
 }
