@@ -27,27 +27,31 @@ export class ProductService {
 			}
 		})
 
-		const products = await this.prisma.$transaction(
-			data.map((item) => {
-				if (item.count < 1) {
-					return this.prisma.product.delete({
-						where: { id: item.id }
-					})
-				} else {
-					return this.prisma.product.upsert({
-						where: { id: item.id },
-						create: {
-							...item
-						},
-						update: {
-							...item
-						}
-					})
+		const itemsToDelete = data
+			.filter((item) => item.count < 1)
+			.map((item) => item.id)
+
+		return this.prisma.$transaction(async (tx) => {
+			await tx.product.deleteMany({
+				where: {
+					id: {
+						in: itemsToDelete
+					}
 				}
 			})
-		)
 
-		return products
+			const products = data
+				.filter((item) => item.count >= 1)
+				.map((item) => {
+					return this.prisma.product.upsert({
+						where: { id: item.id },
+						create: item,
+						update: item
+					})
+				})
+
+			return Promise.all(products)
+		})
 	}
 
 	async getAll(params?: ProductParamsDto) {

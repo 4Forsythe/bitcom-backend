@@ -20,12 +20,8 @@ export class BrandService {
 			data.map((item) =>
 				this.prisma.brand.upsert({
 					where: { id: item.id },
-					create: {
-						...item
-					},
-					update: {
-						...item
-					}
+					create: item,
+					update: item
 				})
 			)
 		)

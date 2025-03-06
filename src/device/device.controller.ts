@@ -7,13 +7,15 @@ import {
 	Param,
 	ParseArrayPipe,
 	BadRequestException,
-	UseGuards
+	UseGuards,
+	Delete
 } from '@nestjs/common'
 
 import { BasicAuthGuard } from 'src/auth.guard'
 import { DeviceService } from './device.service'
 import { CreateDeviceDto } from './dto/create-device.dto'
 import { DeviceParamsDto } from './dto/device-params.dto'
+import { DeleteDeviceDto } from './dto/delete-device.dto'
 
 @Controller('device')
 export class DeviceController {
@@ -39,5 +41,14 @@ export class DeviceController {
 	@Get(':id')
 	getOne(@Param('id') id: string) {
 		return this.deviceService.getOne(id)
+	}
+
+	@Delete()
+	@UseGuards(BasicAuthGuard)
+	delete(
+		@Body(new ParseArrayPipe({ items: DeleteDeviceDto }))
+		dto: DeleteDeviceDto[]
+	) {
+		return this.deviceService.delete(dto)
 	}
 }
