@@ -4,7 +4,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from 'src/prisma.service'
 import { CreateProductDto } from './dto/create-product.dto'
 import { ProductParamsDto } from './dto/product-params.dto'
-import { switchKeyboard } from './utils/switch-keyboard.utils'
+import { getLayoutVariants } from './utils/get-layout-variants'
 
 @Injectable()
 export class ProductService {
@@ -58,20 +58,37 @@ export class ProductService {
 		const { name, categoryId, deviceId, brandId, sortBy, orderBy, take, skip } =
 			params
 
-		const { ru, en } = switchKeyboard(name || '')
+		const query = getLayoutVariants(name)
+		const terms = query.map((phrase) => phrase.split(' '))
 
-		const whereOr = [
-			...(name ? [{ name: { contains: name } }] : []),
-			{ name: { contains: ru, mode: Prisma.QueryMode.insensitive } },
-			{ name: { contains: en, mode: Prisma.QueryMode.insensitive } }
-		]
+		const whereConditions: Prisma.ProductWhereInput = {
+			OR: [
+				...(query.map((phrase) => ({
+					OR: [
+						{ name: { contains: phrase, mode: 'insensitive' } },
+						{ description: { contains: phrase, mode: 'insensitive' } }
+					]
+				})) as Prisma.ProductWhereInput[]),
+
+				...(terms.map((phrases) => ({
+					OR: phrases.map((term) => ({
+						OR: [
+							{ name: { contains: term, mode: 'insensitive' } },
+							{ description: { contains: term, mode: 'insensitive' } }
+						]
+					}))
+				})) as Prisma.ProductWhereInput[])
+			]
+		}
 
 		const products = await this.prisma.product.findMany({
 			where: {
-				OR: whereOr,
-				...(categoryId && { categoryId }),
-				...(deviceId && { deviceId }),
-				...(brandId && { brandId })
+				AND: [
+					whereConditions,
+					...(categoryId ? [{ categoryId }] : []),
+					...(deviceId ? [{ deviceId }] : []),
+					...(brandId ? [{ brandId }] : [])
+				]
 			},
 			include: { category: true, brand: true, device: true },
 			take: +take || 10,
@@ -86,10 +103,12 @@ export class ProductService {
 
 		const count = await this.prisma.product.count({
 			where: {
-				OR: whereOr,
-				...(categoryId && { categoryId }),
-				...(deviceId && { deviceId }),
-				...(brandId && { brandId })
+				...whereConditions,
+				...{
+					...(categoryId && { categoryId }),
+					...(deviceId && { deviceId }),
+					...(brandId && { brandId })
+				}
 			}
 		})
 
