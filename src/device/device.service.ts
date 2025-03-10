@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 
 import { PrismaService } from 'src/prisma.service'
 import { DeviceParamsDto } from './dto/device-params.dto'
@@ -50,6 +50,10 @@ export class DeviceService {
 		const device = await this.prisma.device.findUnique({
 			where: { id }
 		})
+
+		if (!device) {
+			throw new NotFoundException('Устройство не найдено')
+		}
 
 		return device
 	}
