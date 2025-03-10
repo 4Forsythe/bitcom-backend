@@ -21,6 +21,7 @@ import { CartService } from 'src/cart/cart.service'
 import { PaymentService } from 'src/payment/payment.service'
 import { UpdateOrderDto } from './dto/update-order.dto'
 import { OrderParamsDto } from './dto/order-params.dto'
+import { sendTelegramMessage } from 'src/lib/send-telegram-message'
 
 @Injectable()
 export class OrderService {
@@ -34,6 +35,7 @@ export class OrderService {
 
 	SITE_BASE_URL = process.env.SITE_BASE_URL
 	RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL
+	BOT_CHAT_ID = process.env.BOT_REPLY_CHAT_ID
 
 	async create(req: Request, userId: string, dto: CreateOrderDto) {
 		const user = await this.userService.getOne(userId)
@@ -171,6 +173,33 @@ export class OrderService {
 					}
 				}
 			})
+
+			const html = `
+				📝 <b>Новый заказ на сайте</b>
+
+				CUID: <code>${response.id}</code>
+				Дата оформления: <code>${response.createdAt.toLocaleString()}</code>
+
+				🙋‍♂️ <u>Контактные данные</u>:
+
+				${customerName}
+				${customerEmail}
+				${customerPhone}
+
+				🚚 <b>${gettingMethod}</b>
+				💳 <b>${paymentMethod}</b>
+
+				🛍️ <u>Список товаров</u>:
+
+				${items.map((item) => `> (<code>${item.barcode}</code>) ${item.name} — ${item.count} шт.`).join('\n')}
+
+				<blockquote>Это сообщение было продублировано с торговой почты <b>${this.RECIPIENT_EMAIL}</b></blockquote>
+			`
+				.split('\n')
+				.map((line) => line.trim())
+				.join('\n')
+
+			await sendTelegramMessage(this.BOT_CHAT_ID, html)
 
 			if (user.isSubscribed) {
 				await sendMail({
