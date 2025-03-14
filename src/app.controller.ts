@@ -13,6 +13,6 @@ export class AppController {
 
 	@Get('static/:filename')
 	getStaticFile(@Param('filename') filename: string, @Res() res: Response) {
-		return res.sendFile(filename, { root: 'static' })
+		return this.appService.getStaticFile(filename, res)
 	}
 }
