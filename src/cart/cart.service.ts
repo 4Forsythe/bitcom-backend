@@ -218,8 +218,23 @@ export class CartService {
 			where: { id }
 		})
 
-		return this.prisma.cart.findFirst({
+		const cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
+			include: {
+				items: {
+					include: { product: { include: { category: true } } },
+					orderBy: { createdAt: 'desc' }
+				}
+			}
+		})
+
+		const total = cart.items.reduce((sum, item) => {
+			return sum + Number(item.product.price) * item.count
+		}, 0)
+
+		return this.prisma.cart.update({
+			where: { id: cart.id },
+			data: { userId, total },
 			include: {
 				items: {
 					include: { product: { include: { category: true } } },
