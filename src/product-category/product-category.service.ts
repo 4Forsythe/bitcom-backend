@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import {
+	Injectable,
+	BadRequestException,
+	NotFoundException
+} from '@nestjs/common'
 import { type ProductCategory } from '@prisma/client'
 
 import { PrismaService } from 'src/prisma.service'
@@ -97,6 +101,18 @@ export class ProductCategoryService {
 		})
 	}
 
+	async delete(id: string) {
+		const category = await this.getOne(id)
+
+		if (!category) {
+			throw new NotFoundException('Категория не была найдена')
+		}
+
+		return this.prisma.productCategory.delete({
+			where: { id }
+		})
+	}
+
 	// Получение всего древа категорий
 	async getAll() {
 		const allCategories = await this.prisma.productCategory.findMany()
@@ -114,6 +130,10 @@ export class ProductCategoryService {
 		const category = await this.prisma.productCategory.findFirst({
 			where: { id }
 		})
+
+		if (!category) {
+			throw new NotFoundException('Категория не была найдена')
+		}
 
 		return this.getProductCategoryAncestors(allCategories, category)
 	}

@@ -3,6 +3,7 @@ import {
 	Get,
 	Post,
 	Patch,
+	Delete,
 	Body,
 	Param,
 	ParseArrayPipe,
@@ -43,6 +44,12 @@ export class ProductCategoryController {
 			throw new BadRequestException('Недостаточно данных для отправки')
 
 		return this.productCategoryService.update(dto)
+	}
+
+	@Delete(':id')
+	@UseGuards(BasicAuthGuard)
+	delete(@Param('id') id: string) {
+		return this.productCategoryService.delete(id)
 	}
 
 	@Get()

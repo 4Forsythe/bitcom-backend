@@ -195,9 +195,9 @@ model Product {
   deviceId        String?          @map("device_id")
   brandId         String?          @map("brand_id")
 
-  category        ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: NoAction)
-  device          Device?          @relation(fields: [deviceId], references: [id], onDelete: NoAction)
-  brand           Brand?           @relation(fields: [brandId], references: [id], onDelete: NoAction)
+  category        ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  device          Device?          @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  brand           Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime         @default(now()) @map("created_at")
 
