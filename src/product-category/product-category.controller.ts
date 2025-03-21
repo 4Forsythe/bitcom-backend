@@ -2,6 +2,7 @@ import {
 	Controller,
 	Get,
 	Post,
+	Patch,
 	Body,
 	Param,
 	ParseArrayPipe,
@@ -9,9 +10,10 @@ import {
 	UseGuards
 } from '@nestjs/common'
 
-import { ProductCategoryService } from './product-category.service'
 import { BasicAuthGuard } from 'src/auth.guard'
+import { ProductCategoryService } from './product-category.service'
 import { CreateProductCategoryDto } from './dto/create-product-category.dto'
+import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
 
 @Controller('product-category')
 export class ProductCategoryController {
@@ -29,6 +31,18 @@ export class ProductCategoryController {
 			throw new BadRequestException('Недостаточно данных для отправки')
 
 		return this.productCategoryService.create(dto)
+	}
+
+	@Patch()
+	@UseGuards(BasicAuthGuard)
+	update(
+		@Body(new ParseArrayPipe({ items: UpdateProductCategoryDto }))
+		dto: CreateProductCategoryDto[]
+	) {
+		if (dto.length === 0)
+			throw new BadRequestException('Недостаточно данных для отправки')
+
+		return this.productCategoryService.update(dto)
 	}
 
 	@Get()

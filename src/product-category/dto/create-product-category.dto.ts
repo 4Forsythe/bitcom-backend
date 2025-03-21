@@ -9,5 +9,9 @@ export class CreateProductCategoryDto {
 
 	@IsString()
 	@IsOptional()
-	imageUrl: string
+	imageUrl?: string
+
+	@IsString()
+	@IsOptional()
+	parentId?: string
 }
