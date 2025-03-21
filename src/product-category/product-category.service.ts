@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { type ProductCategory } from '@prisma/client'
 
 import { PrismaService } from 'src/prisma.service'
@@ -15,6 +15,15 @@ export class ProductCategoryService {
 	async create(dto: CreateProductCategoryDto[]) {
 		const ancestorCategories = dto.filter((item) => !item.parentId)
 		const childrenCategories = dto.filter((item) => item.parentId)
+
+		if (dto.some((category) => category.id === category.parentId)) {
+			throw new BadRequestException(
+				'Категория не должна быть вложена в саму себя'
+			)
+		}
+
+		await this.getExistingIds(dto)
+		await this.getMissingParents(dto)
 
 		return this.prisma.$transaction(async (tx) => {
 			const createdAncestorCategories = await Promise.all(
@@ -49,6 +58,14 @@ export class ProductCategoryService {
 
 	// Только для обновления категорий и их связей в рекурсии
 	async update(dto: UpdateProductCategoryDto[]) {
+		if (dto.some((category) => category.id === category.parentId)) {
+			throw new BadRequestException(
+				'Категория не должна быть вложена в саму себя'
+			)
+		}
+
+		await this.getMissingParents(dto)
+
 		return this.prisma.$transaction(async (tx) => {
 			const categories = [...dto].sort((a, b) => {
 				if (!a.parentId && b.parentId) return -1
@@ -83,26 +100,68 @@ export class ProductCategoryService {
 	// Получение всего древа категорий
 	async getAll() {
 		const allCategories = await this.prisma.productCategory.findMany()
+		const items = this.getProductCategoryTree(allCategories)
 
-		return this.getProductCategoryTree(allCategories)
+		const count = await this.prisma.productCategory.count()
+
+		return { items, count }
 	}
 
 	// Получение одной категории вместе с ее прямым наследником
 	async getOne(id: string) {
-		const category = await this.prisma.productCategory.findUnique({
-			where: { id },
-			include: {
-				children: true
-			}
+		const allCategories = await this.prisma.productCategory.findMany()
+
+		const category = await this.prisma.productCategory.findFirst({
+			where: { id }
 		})
 
-		return category
+		return this.getProductCategoryAncestors(allCategories, category)
+	}
+
+	// Вспомогательная функция для проверки dto на наличие валидных id
+	private async getExistingIds(dto: CreateProductCategoryDto[]) {
+		const ids = dto.map((item) => item.id)
+
+		const existingIds = new Set(
+			(
+				await this.prisma.productCategory.findMany({
+					where: { id: { in: ids } },
+					select: { id: true }
+				})
+			).map((category) => category.id)
+		)
+
+		if (ids.some((id) => existingIds.has(id))) {
+			throw new BadRequestException(
+				'Одна или несколько категорий с таким id уже существуют'
+			)
+		}
+	}
+
+	// Вспомогательная функция для проверки dto на наличие валидных parentId
+	private async getMissingParents(dto: UpdateProductCategoryDto[]) {
+		const parentIds = dto.map((item) => item.parentId).filter(Boolean)
+
+		const existingParents = new Set(
+			(
+				await this.prisma.productCategory.findMany({
+					where: { id: { in: parentIds } },
+					select: { id: true }
+				})
+			).map((category) => category.id)
+		)
+
+		if (parentIds.some((id) => !existingParents.has(id))) {
+			throw new BadRequestException(
+				'Одна или несколько категорий с таким parentId не существуют'
+			)
+		}
 	}
 
 	// Вспомогательная функция для построения дерева
-	private getProductCategoryTree(categories: ProductCategory[]) {
+	getProductCategoryTree(categories: ProductCategory[]) {
 		const map = new Map()
-		const ancestorCategories = []
+		const ancestorCategories: ProductCategoryWithChildren[] = []
 
 		categories.forEach((category) => {
 			map.set(category.id, { ...category, children: [] })
@@ -121,5 +180,32 @@ export class ProductCategoryService {
 		})
 
 		return ancestorCategories
+	}
+
+	// Вспомогательная функция для построения дерева
+	getProductCategoryAncestors(
+		categories: ProductCategory[],
+		category: ProductCategory
+	) {
+		if (!category.parentId) return { ...category, children: [] }
+
+		const parent = categories.find((parent) => parent.id === category.parentId)
+
+		if (!parent) return { ...category, children: [] }
+
+		const ancestors: ProductCategory = this.getProductCategoryAncestors(
+			categories,
+			parent
+		)
+
+		return {
+			...ancestors,
+			children: [
+				{
+					...category,
+					children: []
+				}
+			]
+		}
 	}
 }
