@@ -3,6 +3,6 @@ import { Injectable } from '@nestjs/common'
 @Injectable()
 export class UploadService {
 	async create(files: Express.Multer.File[]) {
-		return { message: 'Successfull upload' }
+		return files
 	}
 }

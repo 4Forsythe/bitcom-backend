@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { MulterModule } from '@nestjs/platform-express'
-import { diskStorage } from 'multer'
+import { memoryStorage } from 'multer'
 
 import { UploadService } from './upload.service'
 import { UploadController } from './upload.controller'
@@ -8,12 +8,8 @@ import { UploadController } from './upload.controller'
 @Module({
 	imports: [
 		MulterModule.register({
-			storage: diskStorage({
-				destination: './static',
-				filename: (req, file, cb) => {
-					cb(null, file.originalname)
-				}
-			})
+			storage: memoryStorage(),
+			limits: { fileSize: 50 * 1024 * 1024 }
 		})
 	],
 	controllers: [UploadController],

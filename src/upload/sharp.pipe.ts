@@ -4,7 +4,9 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as sharp from 'sharp'
 
-const imageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+const mimeTypes = ['.jpeg', '.jpg', '.png']
+
+const fileDir = path.join(process.cwd(), 'static')
 
 @Injectable()
 export class SharpPipe
@@ -24,16 +26,19 @@ export class SharpPipe
 	}
 
 	private async process(file: Express.Multer.File): Promise<string> {
-		if (!imageMimes.includes(file.mimetype)) {
-			throw new BadRequestException('Недопустимый формат файла')
+		if (!mimeTypes.some((mime) => file.originalname.endsWith(mime))) {
+			throw new BadRequestException(
+				'Недопустимый формат файла (только .JPG, .JPEG или .PNG)'
+			)
 		}
 
-		const fileName = file.originalname
-		const fileBuffer = await fs.readFile(file.path)
+		await fs.mkdir(fileDir, { recursive: true })
 
-		await sharp(fileBuffer)
+		const fileName = file.originalname
+
+		await sharp(file.buffer)
 			.jpeg({ quality: 80, progressive: true, force: true })
-			.toFile(path.join('static', fileName))
+			.toFile(path.join(fileDir, fileName))
 
 		return fileName
 	}
