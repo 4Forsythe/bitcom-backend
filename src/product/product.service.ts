@@ -1,14 +1,19 @@
 import { Prisma } from '@prisma/client'
 import { Injectable, NotFoundException } from '@nestjs/common'
 
+import { getLayoutVariants } from './utils/get-layout-variants'
+
 import { PrismaService } from 'src/prisma.service'
+import { ProductCategoryService } from 'src/product-category/product-category.service'
 import { CreateProductDto } from './dto/create-product.dto'
 import { ProductParamsDto } from './dto/product-params.dto'
-import { getLayoutVariants } from './utils/get-layout-variants'
 
 @Injectable()
 export class ProductService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private productCategoryService: ProductCategoryService,
+		private prisma: PrismaService
+	) {}
 
 	async create(dto: CreateProductDto[]) {
 		const data = dto.map((item) => {
@@ -64,18 +69,12 @@ export class ProductService {
 		const whereConditions: Prisma.ProductWhereInput = {
 			OR: [
 				...(query.map((phrase) => ({
-					OR: [
-						{ name: { contains: phrase, mode: 'insensitive' } },
-						{ description: { contains: phrase, mode: 'insensitive' } }
-					]
+					OR: [{ name: { contains: phrase, mode: 'insensitive' } }]
 				})) as Prisma.ProductWhereInput[]),
 
 				...(terms.map((phrases) => ({
 					OR: phrases.map((term) => ({
-						OR: [
-							{ name: { contains: term, mode: 'insensitive' } },
-							{ description: { contains: term, mode: 'insensitive' } }
-						]
+						OR: [{ name: { contains: term, mode: 'insensitive' } }]
 					}))
 				})) as Prisma.ProductWhereInput[])
 			]
@@ -85,30 +84,28 @@ export class ProductService {
 			where: {
 				AND: [
 					whereConditions,
-					...(categoryId ? [{ categoryId }] : []),
+					...(categoryId ? [{ categoryId: { equals: categoryId } }] : []),
 					...(deviceId ? [{ deviceId }] : []),
 					...(brandId ? [{ brandId }] : [])
 				]
 			},
 			include: { category: true, brand: true, device: true },
-			take: +take || 10,
+			take: +take || 15,
 			skip: +skip || 0,
-			orderBy: {
-				...(sortBy &&
-					orderBy && {
-						[sortBy]: orderBy
-					})
-			}
+			orderBy: [
+				sortBy ? { [sortBy]: orderBy || 'desc' } : { createdAt: 'desc' },
+				{ id: 'asc' }
+			]
 		})
 
 		const count = await this.prisma.product.count({
 			where: {
-				...whereConditions,
-				...{
-					...(categoryId && { categoryId }),
-					...(deviceId && { deviceId }),
-					...(brandId && { brandId })
-				}
+				AND: [
+					whereConditions,
+					categoryId ? { categoryId: { equals: categoryId } } : {},
+					...(deviceId ? [{ deviceId }] : []),
+					...(brandId ? [{ brandId }] : [])
+				]
 			}
 		})
 
@@ -172,6 +169,17 @@ export class ProductService {
 		})
 
 		if (!product) throw new NotFoundException('Товар не найден')
+
+		if (product.category) {
+			const categories = await this.prisma.productCategory.findMany()
+
+			const category = this.productCategoryService.getProductCategoryAncestors(
+				categories,
+				product.category
+			)
+
+			product.category = category
+		}
 
 		return product
 	}
