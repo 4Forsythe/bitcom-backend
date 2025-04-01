@@ -12,9 +12,10 @@ import {
 
 import type { Request, Response } from 'express'
 
-import { OrderService } from './order.service'
 import { Auth } from 'src/auth/auth.decorator'
 import { User } from 'src/user/user.decorator'
+import { OptionalAuth } from 'src/auth/optional-auth.decorator'
+import { OrderService } from './order.service'
 import { UpdateOrderDto } from './dto/update-order.dto'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { OrderParamsDto } from './dto/order-params.dto'
@@ -25,7 +26,7 @@ export class OrderController {
 	constructor(private readonly orderService: OrderService) {}
 
 	@Post()
-	@Auth()
+	@OptionalAuth()
 	create(
 		@Req() req: Request,
 		@User('id') userId: string,
@@ -49,14 +50,22 @@ export class OrderController {
 
 	@Get('me')
 	@Auth()
-	getAll(@User('id') userId: string, @Query() params?: OrderParamsDto) {
-		return this.orderService.getAll(userId, params)
+	getAll(
+		@Req() req: Request,
+		@User('id') userId: string,
+		@Query() params?: OrderParamsDto
+	) {
+		return this.orderService.getAll(req, userId, params)
 	}
 
 	@Get(':id')
-	@Auth()
-	getOne(@Param('id') id: string, @User('id') userId: string) {
-		return this.orderService.getOne(id, userId)
+	@OptionalAuth()
+	getOne(
+		@Param('id') id: string,
+		@Req() req: Request,
+		@User('id') userId: string
+	) {
+		return this.orderService.getOne(id, req, userId)
 	}
 
 	@Get('total')

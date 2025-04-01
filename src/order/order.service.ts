@@ -1,14 +1,16 @@
 import {
-	BadRequestException,
-	forwardRef,
 	Inject,
 	Injectable,
-	NotFoundException
+	forwardRef,
+	NotFoundException,
+	BadRequestException
 } from '@nestjs/common'
+import type { CartItem, Product, User } from '@prisma/client'
 
 import { Request } from 'express'
 
 import { sendMail } from 'src/lib/send-mail'
+import { generateHash } from 'src/lib/generate-hash'
 
 import {
 	CreateOrderDto,
@@ -22,6 +24,10 @@ import { PaymentService } from 'src/payment/payment.service'
 import { UpdateOrderDto } from './dto/update-order.dto'
 import { OrderParamsDto } from './dto/order-params.dto'
 import { sendTelegramMessage } from 'src/lib/send-telegram-message'
+
+type CartItemWithProducts = CartItem & {
+	product: Product
+}
 
 @Injectable()
 export class OrderService {
@@ -37,9 +43,25 @@ export class OrderService {
 	RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL
 	BOT_CHAT_ID = process.env.BOT_REPLY_CHAT_ID
 
-	async create(req: Request, userId: string, dto: CreateOrderDto) {
-		const user = await this.userService.getOne(userId)
+	async create(req: Request, userId: string | null, dto: CreateOrderDto) {
+		let user: Omit<User, 'password'> | null = null
+
+		if (userId) {
+			user = await this.userService.getOne(userId)
+		}
+
+		const token: string | undefined =
+			req.cookies[this.cartService.CART_TOKEN_NAME]
+
+		if (!userId && !token) {
+			throw new NotFoundException('Ваша корзина не найдена')
+		}
+
 		const cart = await this.cartService.getAll(req, userId)
+
+		if (!cart) {
+			throw new NotFoundException('Ваша корзина не найдена')
+		}
 
 		if (cart.items.length === 0) {
 			throw new BadRequestException('В вашей корзине недостаточно товаров')
@@ -47,7 +69,10 @@ export class OrderService {
 
 		const hasOrders = await this.prisma.order.count({
 			where: {
-				AND: [{ userId }, { status: OrderStatus.CREATED }]
+				AND: [
+					userId ? { OR: [{ userId }, { token }] } : { token },
+					{ status: OrderStatus.CREATED }
+				]
 			}
 		})
 
@@ -55,7 +80,7 @@ export class OrderService {
 			throw new BadRequestException('TOO_MANY_ORDERS')
 		}
 
-		const carts = cart.items.map((item) => ({
+		const carts = cart.items.map((item: CartItemWithProducts) => ({
 			count: item.count,
 			price: Number(item.product.price),
 			productId: item.productId
@@ -74,15 +99,20 @@ export class OrderService {
 			paymentMethod
 		} = dto
 
+		const customerFullName =
+			[customerName.lastName, customerName.firstName, customerName.middleName]
+				.filter(Boolean)
+				.join(' ') || undefined
+
 		const order = await this.prisma.order.create({
 			data: {
 				total,
-				customerName,
+				customerName: customerFullName,
 				customerEmail,
 				customerPhone,
 				address,
 				comment,
-				token: userId,
+				token: userId || token,
 				paymentId,
 				status: OrderStatus.PENDING,
 				gettingMethod,
@@ -104,18 +134,24 @@ export class OrderService {
 
 		await this.cartService.clear(req, userId)
 
-		if (customerPhone !== user.phone) {
-			await this.userService.update(userId, { phone: customerPhone })
+		if (
+			user &&
+			(customerFullName !== user.name || customerPhone !== user.phone)
+		) {
+			await this.userService.update(userId, {
+				name: customerFullName || undefined,
+				phone: customerPhone
+			})
 		}
 
 		if (dto.paymentMethod === OrderPaymentMethod.CASH) {
-			if (!user.isActive) {
-				await this.update(order.id, {
-					status: OrderStatus.WAITING
-				})
+			// if (!user.isActive) {
+			// 	await this.update(order.id, {
+			// 		status: OrderStatus.WAITING
+			// 	})
 
-				return this.sendCode(user.email, order.id)
-			}
+			// 	return this.sendCode(user.email, order.id)
+			// }
 
 			await this.update(order.id, {
 				status: OrderStatus.CREATED
@@ -134,7 +170,7 @@ export class OrderService {
 				amount: { value: total, currency: 'RUB' },
 				description: `Оплата заказа №-${order.id}`,
 				customer: {
-					name: customerName,
+					name: customerFullName,
 					email: customerEmail,
 					phone: customerPhone
 				},
@@ -151,6 +187,11 @@ export class OrderService {
 			}
 		})
 
+		const orderHash = new Date(response.createdAt)
+			.getTime()
+			.toString()
+			.slice(-8)
+
 		const items = response.items.map((item) => ({
 			count: item.count,
 			name: item.product.name,
@@ -164,7 +205,8 @@ export class OrderService {
 				html: {
 					path: 'src/templates/create-order.template.html',
 					replacements: {
-						customerName,
+						orderId: orderHash,
+						customerName: customerFullName,
 						customerEmail,
 						customerPhone,
 						gettingMethod,
@@ -177,12 +219,13 @@ export class OrderService {
 			const html = `
 				📝 <b>Новый заказ на сайте</b>
 
-				CUID: <code>${response.id}</code>
-				Дата оформления: <code>${response.createdAt.toLocaleString()}</code>
+				№-<b>${orderHash}</b>
+				Дата оформления: <b>${response.createdAt.toLocaleString()}</b>
+				cuid (для разработчика): <code>${response.id}</code>
 
 				🙋‍♂️ <u>Контактные данные</u>:
 
-				${customerName}
+				${customerFullName}
 				${customerEmail}
 				${customerPhone}
 
@@ -193,7 +236,7 @@ export class OrderService {
 
 				${items.map((item) => `> (<code>${item.barcode}</code>) ${item.name} — ${item.count} шт.`).join('\n')}
 
-				<blockquote>Это сообщение было продублировано с торговой почты <b>${this.RECIPIENT_EMAIL}</b></blockquote>
+				<blockquote>Это сообщение было продублировано с контактной почты <b>${this.RECIPIENT_EMAIL}</b></blockquote>
 			`
 				.split('\n')
 				.map((line) => line.trim())
@@ -201,15 +244,16 @@ export class OrderService {
 
 			await sendTelegramMessage(this.BOT_CHAT_ID, html)
 
-			if (user.isSubscribed) {
+			if (user && user.isSubscribed) {
 				await sendMail({
 					to: user.email,
 					subject: 'Ваш заказ создан',
 					html: {
 						path: 'src/templates/order-notification.template.html',
 						replacements: {
+							orderId: orderHash,
 							total,
-							customerName,
+							customerName: customerFullName,
 							customerPhone,
 							gettingMethod,
 							paymentMethod,
@@ -343,11 +387,12 @@ export class OrderService {
 		return order
 	}
 
-	async getAll(userId: string, params?: OrderParamsDto) {
+	async getAll(req: Request, userId: string, params?: OrderParamsDto) {
 		const { take, skip } = params
+		const token = req.cookies[this.cartService.CART_TOKEN_NAME]
 
 		const orders = await this.prisma.order.findMany({
-			where: { userId },
+			where: { OR: [{ userId }, { token }] },
 			orderBy: { createdAt: 'desc' },
 			include: {
 				items: { include: { product: { include: { category: true } } } }
@@ -356,20 +401,42 @@ export class OrderService {
 			skip: +skip || 0
 		})
 
-		const count = await this.prisma.order.count({
-			where: { userId }
-		})
-
 		if (!orders) {
 			return { items: [], count: 0 }
 		}
 
+		const guestOrders = orders.filter((order) => !order.userId)
+
+		if (guestOrders.length > 0 && userId) {
+			await this.prisma.order.updateMany({
+				where: {
+					token,
+					userId: null
+				},
+				data: {
+					userId
+				}
+			})
+		}
+
+		const count = await this.prisma.order.count({
+			where: { userId }
+		})
+
 		return { items: orders, count }
 	}
 
-	async getOne(id: string, userId: string) {
-		const order = await this.prisma.order.findUnique({
-			where: { id, userId },
+	async getOne(id: string, req: Request, userId: string) {
+		const token = req.cookies['CART_TOKEN']
+
+		if (!userId && !token) {
+			throw new NotFoundException('Заказ не найден')
+		}
+
+		const order = await this.prisma.order.findFirst({
+			where: {
+				AND: [{ id }, userId ? { OR: [{ userId }, { token }] } : { token }]
+			},
 			include: {
 				items: { include: { product: { include: { category: true } } } }
 			}
@@ -391,18 +458,39 @@ export class OrderService {
 			throw new NotFoundException('Заказ не найден')
 		}
 
+		const {
+			customerName,
+			customerEmail,
+			customerPhone,
+			address,
+			comment,
+			paymentId,
+			status,
+			gettingMethod,
+			paymentMethod
+		} = dto
+
+		const customerFullName =
+			[
+				customerName?.lastName,
+				customerName?.firstName,
+				customerName?.middleName
+			]
+				.filter(Boolean)
+				.join(' ') || undefined
+
 		return this.prisma.order.update({
 			where: { id },
 			data: {
-				customerName: dto?.customerName,
-				customerEmail: dto?.customerEmail,
-				customerPhone: dto?.customerPhone,
-				address: dto?.address,
-				comment: dto?.comment,
-				paymentId: dto?.paymentId,
-				status: dto?.status,
-				gettingMethod: dto?.gettingMethod,
-				paymentMethod: dto?.paymentMethod
+				customerName: customerFullName,
+				customerEmail,
+				customerPhone,
+				address,
+				comment,
+				paymentId,
+				status,
+				gettingMethod,
+				paymentMethod
 			},
 			include: {
 				items: { include: { product: { include: { category: true } } } }

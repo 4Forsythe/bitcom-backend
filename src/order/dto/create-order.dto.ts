@@ -1,15 +1,11 @@
 import {
 	IsEmail,
 	IsString,
-	MinLength,
-	MaxLength,
+	IsObject,
 	IsOptional,
 	IsPhoneNumber,
-	IsNumber,
-	IsObject,
-	IsDecimal,
-	IsInt,
-	IsArray
+	MinLength,
+	MaxLength
 } from 'class-validator'
 
 export enum OrderStatus {
@@ -31,11 +27,26 @@ export enum OrderPaymentMethod {
 	CASH = 'При получении'
 }
 
-export class CreateOrderDto {
+class CustomerNameDto {
 	@IsString()
-	@MinLength(5)
-	@MaxLength(144)
-	customerName: string
+	@MinLength(2)
+	@MaxLength(50)
+	firstName: string
+
+	@IsString()
+	@MinLength(2)
+	@MaxLength(50)
+	lastName: string
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(50)
+	middleName?: string
+}
+
+export class CreateOrderDto {
+	@IsObject()
+	customerName: CustomerNameDto
 
 	@IsEmail()
 	customerEmail: string
