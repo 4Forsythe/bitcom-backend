@@ -51,13 +51,16 @@
 				border-top: 1px solid #e6e6e6;
 				border-bottom: 1px solid #e6e6e6;
 			}
+			.main h3 {
+				font-size: 18px;
+				font-weight: 500;
+			}
 			.main p {
-				font-size: 15px;
+				font-size: 14px;
 				line-height: 1.75;
 			}
 			.main b {
 				font-weight: 700;
-				text-transform: uppercase;
 			}
 			.main a {
 				text-decoration: none;
@@ -73,6 +76,16 @@
 			}
 			.block-center {
 				text-align: center;
+			}
+			.barcode {
+				font-size: 14px;
+				padding: 3px 6px;
+				border-radius: 4px;
+				color: #7d7d7d;
+				background-color: #d3d3d3;
+			}
+			.accent {
+				color: #ef4444;
 			}
 			hr {
 				max-width: 25%;
@@ -113,6 +126,12 @@
 			</header>
 			<div class="main">
 				<div class="block">
+					<h3 class="block">№ <span class="accent">{{orderId}}</span></h3>
+				</div>
+				<div class="block">
+					<p>Клиент ожидает звонок от менеджера.</p>
+				</div>
+				<div class="block">
 					<b class="block">Получатель:</b>
 					<span class="small-block">{{customerName}}</span>
 					<span class="small-block">{{customerPhone}}</span>
@@ -133,12 +152,16 @@
 					<b class="block">Товары под заказ:</b>
 					<div class="block background">
 						{{#each items}}
-						<p class="small-block">({{barcode}}) {{name}} — {{count}} шт.</p>
+						<p class="small-block">
+							<span class="barcode">{{barcode}}</span> {{count}}x {{name}} —
+							{{price}} руб.
+						</p>
+						<br />
 						{{/each}}
 					</div>
 				</div>
 				<div class="block">
-					<p>Свяжитесь с покупателем для уточнения всех деталей заказа</p>
+					<p>Свяжитесь с покупателем для уточнения всех деталей заказа.</p>
 				</div>
 			</div>
 			<footer class="footer">
