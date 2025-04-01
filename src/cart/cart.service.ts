@@ -1,7 +1,7 @@
 import {
-	BadRequestException,
 	Injectable,
-	NotFoundException
+	NotFoundException,
+	BadRequestException
 } from '@nestjs/common'
 
 import { v4 as uuid } from 'uuid'
@@ -118,7 +118,7 @@ export class CartService {
 		})
 	}
 
-	removeCartToken(res: Response) {
+	private removeCartToken(res: Response) {
 		res.cookie(this.CART_TOKEN_NAME, '', {
 			domain: this.configService.get('SITE_DOMAIN'),
 			expires: new Date(0),
@@ -145,6 +145,19 @@ export class CartService {
 
 		if (!cart) {
 			return { items: [], total: 0 }
+		}
+
+		const hasGuestCart = !cart.userId
+
+		if (hasGuestCart && userId) {
+			await this.prisma.cart.update({
+				where: {
+					id: cart.id
+				},
+				data: {
+					userId
+				}
+			})
 		}
 
 		return cart

@@ -124,6 +124,19 @@ export class WishlistService {
 			return { items: [] }
 		}
 
+		const hasGuestWishlist = !wishlist.userId
+
+		if (hasGuestWishlist && userId) {
+			await this.prisma.wishlist.update({
+				where: {
+					id: wishlist.id
+				},
+				data: {
+					userId
+				}
+			})
+		}
+
 		return wishlist
 	}
 
