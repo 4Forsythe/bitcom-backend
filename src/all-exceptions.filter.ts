@@ -11,6 +11,7 @@ import { sendTelegramMessage } from './lib/send-telegram-message'
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+	NODE_ENV = process.env.NODE_ENV
 	BOT_CHAT_ID = process.env.BOT_REPORT_CHAT_ID
 
 	private readonly logger = new Logger(AllExceptionsFilter.name)
@@ -48,7 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
 	private async sendErrorNotification(log: string) {
 		const html = `
-				<b>Bitcom Backend</b>
+				<b>[${this.NODE_ENV}] Bitcom</b>
         ${log}
 			`
 			.split('\n')
