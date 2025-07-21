@@ -13,7 +13,7 @@ export class AppService {
 		const filePath = path.join('static', filename)
 
 		if (!fs.existsSync(filePath)) {
-			throw new NotFoundException('Файл не найден')
+			throw new NotFoundException('File is not found')
 		}
 
 		return res.sendFile(filename, { root: 'static' })

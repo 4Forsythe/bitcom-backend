@@ -1,9 +1,13 @@
-import { IsInt, IsNumber, IsString, IsOptional, IsArray } from 'class-validator'
+import {
+	IsInt,
+	IsNumber,
+	IsString,
+	IsOptional,
+	IsArray,
+	IsBoolean
+} from 'class-validator'
 
 export class CreateProductDto {
-	@IsString()
-	id: string
-
 	@IsString()
 	name: string
 
@@ -12,31 +16,25 @@ export class CreateProductDto {
 	description?: string
 
 	@IsInt()
-	count: number
+	@IsOptional()
+	count?: number
 
 	@IsNumber()
 	price: number
 
 	@IsArray()
 	@IsString({ each: true })
-	barcode: string[]
-
-	@IsString()
-	model: string
-
-	@IsString()
 	@IsOptional()
-	imageUrl?: string
+	sku?: string[]
+
+	@IsBoolean()
+	@IsOptional()
+	isArchived?: boolean
+
+	@IsBoolean()
+	@IsOptional()
+	isPublished?: boolean
 
 	@IsString()
-	@IsOptional()
-	categoryId?: string
-
-	@IsString()
-	@IsOptional()
-	deviceId?: string
-
-	@IsString()
-	@IsOptional()
-	brandId?: string
+	categoryId: string
 }

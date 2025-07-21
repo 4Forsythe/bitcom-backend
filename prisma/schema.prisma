@@ -120,60 +120,28 @@ model Wishlist {
   @@map("wishlists")
 }
 
-model Brand {
-  id          String     @id @default(cuid())
-
-  name        String
-  products    Product[]
-  discounts   Discount[]
-
-  @@map("brands")
-}
-
-model Device {
-  id          String     @id @default(cuid())
-
-  name        String
-  products    Product[]
-  discounts   Discount[]
-
-  @@map("devices")
-}
-
-model Discount {
-  id          String           @id @default(cuid())
-
-  dateBegin   DateTime?        @map("date_begin")
-  dateEnd     DateTime?        @map("date_end")
-  percent     Int
-
-  categoryId  String?          @map("category_id")
-  deviceId    String?          @map("device_id")
-  brandId     String?          @map("brand_id")
-
-  categories  ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: NoAction)
-  devices     Device?          @relation(fields: [deviceId], references: [id], onDelete: NoAction)
-  brands      Brand?           @relation(fields: [brandId], references: [id], onDelete: NoAction)
-
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-
-  @@map("discounts")
-}
-
 model ProductCategory {
   id          String            @id @default(cuid())
 
   name        String
-  imageUrl    String?
+  imageUrl    String?           @map("image_url")
   parentId    String?           @map("parent_id")
-  parent      ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  parent      ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id])
 
   children    ProductCategory[] @relation("ProductCategoryHierarchy")
   products    Product[]
-  discounts   Discount[]
 
   @@map("product_categories")
+}
+
+model ProductImage {
+  id              String          @id @default(cuid())
+
+  url             String
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId       String
+
+  @@map("product_images")
 }
 
 model Product {
@@ -181,25 +149,22 @@ model Product {
 
   name            String
   description     String?
-  count           Int
+  count           Int?
   price           Decimal          @db.Decimal(10,2)
-  barcode         String[]
-  model           String
-  imageUrl        String?
+  images          ProductImage[]
+  sku             String[]
+  isArchived      Boolean          @default(false)  @map("is_archived")
+  isPublished     Boolean          @default(false)  @map("is_published")
+  category        ProductCategory  @relation(fields: [categoryId], references: [id])
+  categoryId      String           @map("category_id")
   
   cartItems       CartItem[]
   wishlistItems   WishlistItem[]
   orderItems      OrderItem[]
 
-  categoryId      String?          @map("category_id")
-  deviceId        String?          @map("device_id")
-  brandId         String?          @map("brand_id")
-
-  category        ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  device          Device?          @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  brand           Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
-
   createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt      @map("updated_at")
+  archivedAt      DateTime?        @map("archived_at")
 
   @@map("products")
 }
@@ -211,7 +176,7 @@ model OrderItem {
   productId          String       @map("product_id")
   orderId            String       @map("order_id")
 
-  product            Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product            Product      @relation(fields: [productId], references: [id])
   order              Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
@@ -230,7 +195,7 @@ model Order {
   comment            String?
   token              String
   userId             String?      @map("user_id")
-  paymentId          String?
+  paymentId          String?      @map("payment_id")
 
   status             String       @default("Обрабатывается")
   gettingMethod      String       @map("getting_method")
@@ -240,6 +205,7 @@ model Order {
 
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt      @map("updated_at")
+  archivedAt         DateTime?    @map("archived_at")
 
   @@map("orders")
 }

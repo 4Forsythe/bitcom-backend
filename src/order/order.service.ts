@@ -195,7 +195,7 @@ export class OrderService {
 		const items = response.items.map((item) => ({
 			count: item.count,
 			name: item.product.name,
-			barcode: item.product.barcode.join(', ')
+			barcode: item.product.sku.join(', ')
 		}))
 
 		if (response.status === OrderStatus.CREATED) {
@@ -377,7 +377,7 @@ export class OrderService {
 						return {
 							count: item.count,
 							name: item.product.name,
-							barcode: item.product.barcode.join(', ')
+							barcode: item.product.sku.join(', ')
 						}
 					})
 				}
