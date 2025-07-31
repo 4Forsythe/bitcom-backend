@@ -46,18 +46,6 @@ model UserCode {
   @@map("user_codes")
 }
 
-model Metrics {
-  id                 Int          @id  @default(autoincrement())
-
-  viewers            Int          @default(0)
-  views              Int          @default(0)
-
-  createdAt          DateTime     @default(now())   @map("created_at")
-  updatedAt          DateTime     @updatedAt        @map("updated_at")        
-
-  @@map("metrics")
-}
-
 model CartItem {
   id                 String       @id  @default(cuid())
 
@@ -121,40 +109,46 @@ model Wishlist {
 }
 
 model ProductCategory {
-  id          String            @id @default(cuid())
+  id          String            @id @default(uuid())
 
   name        String
   imageUrl    String?           @map("image_url")
   parentId    String?           @map("parent_id")
   parent      ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id])
+  sortOrder   Int               @map("sort_order")
 
   children    ProductCategory[] @relation("ProductCategoryHierarchy")
   products    Product[]
 
   @@map("product_categories")
+  @@index([parentId, sortOrder])
 }
 
 model ProductImage {
-  id              String          @id @default(cuid())
+  id              String          @id @default(uuid())
 
   url             String
   product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId       String
+  productId       String          @map("product_id")
+  sortOrder       Int             @map("sort_order")
 
   @@map("product_images")
+  @@index([productId, sortOrder])
 }
 
 model Product {
   id              String           @id @default(cuid())
+  slug            String
 
   name            String
   description     String?
   count           Int?
   price           Decimal          @db.Decimal(10,2)
+  discountPrice   Decimal?         @db.Decimal(10,2)  @map("discount_price")
   images          ProductImage[]
   sku             String[]
-  isArchived      Boolean          @default(false)  @map("is_archived")
-  isPublished     Boolean          @default(false)  @map("is_published")
+  isArchived      Boolean          @default(false)    @map("is_archived")
+  isPublished     Boolean          @default(false)    @map("is_published")
   category        ProductCategory  @relation(fields: [categoryId], references: [id])
   categoryId      String           @map("category_id")
   

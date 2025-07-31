@@ -11,8 +11,8 @@ export class AppController {
 		return this.appService.getHello()
 	}
 
-	@Get('static/:filename')
-	getStaticFile(@Param('filename') filename: string, @Res() res: Response) {
-		return this.appService.getStaticFile(filename, res)
+	@Get('static/:path(*)')
+	getStaticFile(@Param('path') path: string, @Res() res: Response) {
+		return this.appService.getStaticFile(path, res)
 	}
 }

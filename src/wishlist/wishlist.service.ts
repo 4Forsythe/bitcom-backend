@@ -81,15 +81,7 @@ export class WishlistService {
 			})
 		}
 
-		return this.prisma.wishlist.findFirst({
-			where: { id: wishlist.id },
-			include: {
-				items: {
-					include: { product: { include: { category: true } } },
-					orderBy: { createdAt: 'desc' }
-				}
-			}
-		})
+		return this.getAll(req, userId)
 	}
 
 	private createWishlistToken(res: Response, token: string) {
@@ -107,21 +99,33 @@ export class WishlistService {
 		const token = req.cookies[this.WISHLIST_TOKEN_NAME]
 
 		if (!userId && !token) {
-			return { items: [] }
+			return { items: [], archived: [] }
 		}
 
 		const wishlist = await this.prisma.wishlist.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
 				items: {
-					include: { product: { include: { category: true } } },
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					},
 					orderBy: { createdAt: 'desc' }
 				}
 			}
 		})
 
 		if (!wishlist) {
-			return { items: [] }
+			return { items: [], archived: [] }
 		}
 
 		const hasGuestWishlist = !wishlist.userId
@@ -137,14 +141,45 @@ export class WishlistService {
 			})
 		}
 
-		return wishlist
+		const availables: typeof wishlist.items = []
+		const archived: typeof wishlist.items = []
+
+		for (const item of wishlist.items) {
+			if (item.product?.isArchived) {
+				archived.push(item)
+			} else {
+				availables.push(item)
+			}
+		}
+
+		const { items, ...rest } = wishlist
+
+		return {
+			...rest,
+			items: availables,
+			archived
+		}
 	}
 
 	async getOne(id: string, userId: string, token: string) {
 		const wishlist = await this.prisma.wishlist.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: { include: { category: true } } } }
+				items: {
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					}
+				}
 			}
 		})
 
@@ -166,14 +201,6 @@ export class WishlistService {
 			where: { id }
 		})
 
-		return this.prisma.wishlist.findFirst({
-			where: userId ? { OR: [{ userId }, { token }] } : { token },
-			include: {
-				items: {
-					include: { product: { include: { category: true } } },
-					orderBy: { createdAt: 'desc' }
-				}
-			}
-		})
+		await this.getAll(req, userId)
 	}
 }

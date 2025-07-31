@@ -53,8 +53,6 @@ export class PaymentService {
 	async getStatus(dto: PaymentStatusDto) {
 		await this.confirm(dto)
 
-		console.log(dto)
-
 		if (dto.event === PaymentEventStatus.SUCCESSED) {
 			console.log('Оплата прошла')
 			return this.orderService.update(dto.object.metadata.order, {

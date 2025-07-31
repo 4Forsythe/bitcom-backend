@@ -7,7 +7,7 @@ import * as sharp from 'sharp'
 
 const mimeTypes = ['.jpeg', '.jpg', '.png', '.webp']
 
-const fileDir = path.join(process.cwd(), 'static', 'products')
+const fileDir = path.join(process.env.FILE_STORAGE_URL, 'static', 'products')
 
 @Injectable()
 export class SharpPipe

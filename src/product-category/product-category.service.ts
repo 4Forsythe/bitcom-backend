@@ -36,7 +36,8 @@ export class ProductCategoryService {
 						data: {
 							id: dto.id,
 							name: dto.name,
-							imageUrl: dto.imageUrl
+							imageUrl: dto.imageUrl,
+							sortOrder: dto.sortOrder
 						}
 					})
 				)
@@ -50,7 +51,8 @@ export class ProductCategoryService {
 							imageUrl: dto.imageUrl,
 							parent: {
 								connect: { id: dto.parentId }
-							}
+							},
+							sortOrder: dto.sortOrder
 						}
 					})
 				)
@@ -115,8 +117,13 @@ export class ProductCategoryService {
 
 	// Получение всего древа категорий
 	async getAll() {
-		const allCategories = await this.prisma.productCategory.findMany()
-		const items = this.getProductCategoryTree(allCategories)
+		const allCategories = await this.prisma.productCategory.findMany({
+			orderBy: {
+				sortOrder: 'asc'
+			}
+		})
+
+		const items = this.getProductCategoriesTree(allCategories)
 
 		const count = await this.prisma.productCategory.count()
 
@@ -135,7 +142,7 @@ export class ProductCategoryService {
 			throw new NotFoundException('Категория не была найдена')
 		}
 
-		return this.getProductCategoryAncestors(allCategories, category)
+		return this.getProductCategoryTree(allCategories, category.id)
 	}
 
 	// Вспомогательная функция для проверки dto на наличие валидных id
@@ -179,7 +186,7 @@ export class ProductCategoryService {
 	}
 
 	// Вспомогательная функция для построения дерева
-	getProductCategoryTree(categories: ProductCategory[]) {
+	getProductCategoriesTree(categories: ProductCategory[]) {
 		const map = new Map()
 		const ancestorCategories: ProductCategoryWithChildren[] = []
 
@@ -199,33 +206,71 @@ export class ProductCategoryService {
 			}
 		})
 
+		function sortTree(nodes: ProductCategoryWithChildren[]) {
+			nodes.sort((a, b) => a.sortOrder - b.sortOrder)
+			nodes.forEach((node) => {
+				if (node.children.length > 0) {
+					sortTree(node.children)
+				}
+			})
+		}
+
+		sortTree(ancestorCategories)
+
 		return ancestorCategories
 	}
 
-	// Вспомогательная функция для построения дерева
-	getProductCategoryAncestors(
-		categories: ProductCategory[],
-		category: ProductCategory
-	) {
-		if (!category.parentId) return { ...category, children: [] }
+	// Получаем полный путь от корня до конечной категории
+	getProductCategoryTree(categories: ProductCategory[], categoryId: string) {
+		const copy = categories.map((category) => ({ ...category, children: [] }))
 
-		const parent = categories.find((parent) => parent.id === category.parentId)
+		const map = new Map<string, ProductCategoryWithChildren>()
+		copy.forEach((category) => {
+			map.set(category.id, category)
+		})
 
-		if (!parent) return { ...category, children: [] }
+		copy.forEach((category) => {
+			if (category.parentId && map.has(category.parentId)) {
+				map.get(category.parentId)!.children.push(map.get(category.id)!)
+			}
+		})
 
-		const ancestors: ProductCategory = this.getProductCategoryAncestors(
-			categories,
-			parent
-		)
+		let current = map.get(categoryId)
+		if (!current) return null
 
-		return {
-			...ancestors,
-			children: [
-				{
-					...category,
-					children: []
-				}
-			]
+		const path: ProductCategoryWithChildren[] = []
+
+		while (current) {
+			path.unshift(current)
+			current = current.parentId ? map.get(current.parentId) : null
 		}
+
+		for (const node of path) node.children = []
+		for (let i = 0; i < path.length - 1; i++) {
+			path[i].children = [path[i + 1]]
+		}
+
+		return path[0]
+	}
+
+	async getAllNestedCategoriesForNode(id: string) {
+		const categories = await this.prisma.productCategory.findMany()
+
+		const response: string[] = []
+
+		function collectIds(categoryId: string) {
+			response.push(categoryId)
+
+			const children = categories.filter(
+				(category) => category.parentId === categoryId
+			)
+			for (const child of children) {
+				collectIds(child.id)
+			}
+		}
+
+		collectIds(id)
+
+		return response
 	}
 }

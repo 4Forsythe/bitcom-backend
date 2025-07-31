@@ -10,11 +10,14 @@ import { WishListModule } from './wishlist/wishlist.module'
 import { OrderModule } from './order/order.module'
 import { PaymentModule } from './payment/payment.module'
 import { ConfigModule } from '@nestjs/config'
-import { UploadModule } from './upload/upload.module'
+import { envValidationSchema } from './config/env.validation'
 
 @Module({
 	imports: [
-		ConfigModule.forRoot(),
+		ConfigModule.forRoot({
+			isGlobal: true,
+			validationSchema: envValidationSchema
+		}),
 		AuthModule,
 		UserModule,
 		ProductModule,
@@ -22,8 +25,7 @@ import { UploadModule } from './upload/upload.module'
 		ProductCategoryModule,
 		WishListModule,
 		OrderModule,
-		PaymentModule,
-		UploadModule
+		PaymentModule
 	],
 	controllers: [AppController],
 	providers: [AppService]

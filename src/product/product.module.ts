@@ -4,6 +4,7 @@ import { memoryStorage } from 'multer'
 
 import { ProductService } from './product.service'
 import { ProductController } from './product.controller'
+import { UserModule } from 'src/user/user.module'
 import { ProductCategoryModule } from 'src/product-category/product-category.module'
 
 import { PrismaService } from 'src/prisma.service'
@@ -11,6 +12,7 @@ import { PrismaService } from 'src/prisma.service'
 @Module({
 	exports: [ProductService],
 	imports: [
+		UserModule,
 		ProductCategoryModule,
 		MulterModule.register({
 			storage: memoryStorage(),

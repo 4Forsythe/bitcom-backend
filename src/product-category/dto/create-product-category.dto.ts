@@ -1,4 +1,4 @@
-import { IsString, IsOptional, ValidateIf } from 'class-validator'
+import { IsString, IsOptional, ValidateIf, IsNumber } from 'class-validator'
 
 export class CreateProductCategoryDto {
 	@IsString()
@@ -15,4 +15,7 @@ export class CreateProductCategoryDto {
 	@IsOptional()
 	@ValidateIf((category) => category.parentId !== null)
 	parentId?: string
+
+	@IsNumber()
+	sortOrder: number
 }

@@ -1,8 +1,24 @@
-import { IsArray, IsString, IsOptional } from 'class-validator'
+import {
+	IsArray,
+	IsNumber,
+	IsString,
+	IsOptional,
+	ValidateNested
+} from 'class-validator'
+import { Type } from 'class-transformer'
+
+class PreservedImageDto {
+	@IsString()
+	id: string
+
+	@IsNumber()
+	sortOrder: number
+}
 
 export class UpdateProductImagesDto {
 	@IsArray()
-	@IsString({ each: true })
+	@ValidateNested({ each: true })
+	@Type(() => PreservedImageDto)
 	@IsOptional()
-	preserved?: string[]
+	preserved?: PreservedImageDto[]
 }

@@ -22,6 +22,10 @@ export class CreateProductDto {
 	@IsNumber()
 	price: number
 
+	@IsNumber()
+	@IsOptional()
+	discountPrice?: number
+
 	@IsArray()
 	@IsString({ each: true })
 	@IsOptional()

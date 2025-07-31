@@ -43,7 +43,10 @@ export class CartService {
 		let cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
+				items: {
+					include: { product: true },
+					orderBy: { createdAt: 'desc' }
+				}
 			}
 		})
 
@@ -87,24 +90,48 @@ export class CartService {
 		cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: true }, orderBy: { createdAt: 'desc' } }
-			}
-		})
-
-		const total = cart.items.reduce((sum, item) => {
-			return sum + Number(item.product.price) * item.count
-		}, 0)
-
-		return this.prisma.cart.update({
-			where: { id: cart.id },
-			data: { userId, total },
-			include: {
 				items: {
 					include: { product: true },
 					orderBy: { createdAt: 'desc' }
 				}
 			}
 		})
+
+		const total = cart.items.reduce((sum, item) => {
+			if (item.product.isArchived) return sum
+			return (
+				sum +
+				(item.product.discountPrice
+					? Number(item.product.discountPrice)
+					: Number(item.product.price)) *
+					item.count
+			)
+		}, 0)
+
+		await this.prisma.cart.update({
+			where: { id: cart.id },
+			data: { userId, total },
+			include: {
+				items: {
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					},
+					orderBy: { createdAt: 'desc' }
+				}
+			}
+		})
+
+		return this.getAll(req, userId)
 	}
 
 	private createCartToken(res: Response, token: string) {
@@ -130,21 +157,34 @@ export class CartService {
 		const token = req.cookies[this.CART_TOKEN_NAME]
 
 		if (!userId && !token) {
-			return { items: [], total: 0 }
+			return { items: [], archived: [], total: 0 }
 		}
 
 		const cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
 				items: {
-					include: { product: { include: { category: true } } },
+					where: { product: { isPublished: true } },
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					},
 					orderBy: { createdAt: 'desc' }
 				}
 			}
 		})
 
 		if (!cart) {
-			return { items: [], total: 0 }
+			return { items: [], archived: [], total: 0 }
 		}
 
 		const hasGuestCart = !cart.userId
@@ -160,7 +200,34 @@ export class CartService {
 			})
 		}
 
-		return cart
+		const availables: typeof cart.items = []
+		const archived: typeof cart.items = []
+
+		for (const item of cart.items) {
+			if (item.product.isArchived) {
+				archived.push(item)
+			} else {
+				availables.push(item)
+			}
+		}
+
+		for (const item of availables) {
+			if (
+				!item.product.isArchived &&
+				item.product.count !== null &&
+				item.product.count < item.count
+			) {
+				item.count = item.product.count
+			}
+		}
+
+		const { items, ...rest } = cart
+
+		return {
+			...rest,
+			items: availables,
+			archived
+		}
 	}
 
 	async getOne(id: string, userId: string, token: string) {
@@ -171,7 +238,21 @@ export class CartService {
 		const cart = await this.prisma.cart.findFirst({
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
-				items: { include: { product: { include: { category: true } } } }
+				items: {
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					}
+				}
 			}
 		})
 
@@ -207,19 +288,40 @@ export class CartService {
 		})
 
 		const total = cart.items.reduce((sum, item) => {
-			return sum + Number(item.product.price) * item.count
+			if (item.product.isArchived) return sum
+			return (
+				sum +
+				(item.product.discountPrice
+					? Number(item.product.discountPrice)
+					: Number(item.product.price)) *
+					item.count
+			)
 		}, 0)
 
-		return this.prisma.cart.update({
+		await this.prisma.cart.update({
 			where: { id: cart.id },
 			data: { userId, total },
 			include: {
 				items: {
-					include: { product: { include: { category: true } } },
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					},
 					orderBy: { createdAt: 'desc' }
 				}
 			}
 		})
+
+		return this.getAll(req, userId)
 	}
 
 	async remove(id: string, req: Request, userId: string) {
@@ -242,19 +344,40 @@ export class CartService {
 		})
 
 		const total = cart.items.reduce((sum, item) => {
-			return sum + Number(item.product.price) * item.count
+			if (item.product.isArchived) return sum
+			return (
+				sum +
+				(item.product.discountPrice
+					? Number(item.product.discountPrice)
+					: Number(item.product.price)) *
+					item.count
+			)
 		}, 0)
 
-		return this.prisma.cart.update({
+		await this.prisma.cart.update({
 			where: { id: cart.id },
 			data: { userId, total },
 			include: {
 				items: {
-					include: { product: { include: { category: true } } },
+					include: {
+						product: {
+							include: {
+								images: {
+									select: {
+										id: true,
+										url: true
+									}
+								},
+								category: true
+							}
+						}
+					},
 					orderBy: { createdAt: 'desc' }
 				}
 			}
 		})
+
+		return this.getAll(req, userId)
 	}
 
 	async clear(req: Request, userId: string) {
@@ -293,6 +416,6 @@ export class CartService {
 			})
 		}
 
-		return cart
+		return this.getAll(req, userId)
 	}
 }

@@ -80,13 +80,13 @@ export class OrderService {
 			throw new BadRequestException('TOO_MANY_ORDERS')
 		}
 
-		const carts = cart.items.map((item: CartItemWithProducts) => ({
+		const cartItems = cart.items.map((item: CartItemWithProducts) => ({
 			count: item.count,
-			price: Number(item.product.price),
+			price: item.product.discountPrice
+				? Number(item.product.discountPrice)
+				: Number(item.product.price),
 			productId: item.productId
 		}))
-
-		const total = carts.reduce((sum, item) => sum + item.price * item.count, 0)
 
 		const {
 			customerName,
@@ -106,7 +106,7 @@ export class OrderService {
 
 		const order = await this.prisma.order.create({
 			data: {
-				total,
+				total: cart.total,
 				customerName: customerFullName,
 				customerEmail,
 				customerPhone,
@@ -125,7 +125,7 @@ export class OrderService {
 		})
 
 		await this.prisma.orderItem.createMany({
-			data: carts.map((item) => ({
+			data: cartItems.map((item) => ({
 				count: item.count,
 				productId: item.productId,
 				orderId: order.id
@@ -134,12 +134,8 @@ export class OrderService {
 
 		await this.cartService.clear(req, userId)
 
-		if (
-			user &&
-			(customerFullName !== user.name || customerPhone !== user.phone)
-		) {
+		if (user && customerPhone !== user.phone) {
 			await this.userService.update(userId, {
-				name: customerFullName || undefined,
 				phone: customerPhone
 			})
 		}
@@ -167,7 +163,7 @@ export class OrderService {
 			}))
 
 			await this.paymentService.create({
-				amount: { value: total, currency: 'RUB' },
+				amount: { value: cart.total, currency: 'RUB' },
 				description: `Оплата заказа №-${order.id}`,
 				customer: {
 					name: customerFullName,
@@ -195,7 +191,10 @@ export class OrderService {
 		const items = response.items.map((item) => ({
 			count: item.count,
 			name: item.product.name,
-			barcode: item.product.sku.join(', ')
+			barcode: item.product.sku.join(', '),
+			price: item.product.discountPrice
+				? String(item.product.discountPrice)
+				: String(item.product.price)
 		}))
 
 		if (response.status === OrderStatus.CREATED) {
@@ -234,7 +233,9 @@ export class OrderService {
 
 				🛍️ <u>Список товаров</u>:
 
-				${items.map((item) => `> (<code>${item.barcode}</code>) ${item.name} — ${item.count} шт.`).join('\n')}
+				${items.map((item) => `> ${item.name} — ${item.count} шт.`).join('\n')}
+
+				<b>Итоговая сумма</b>: ${response.total} ₽
 
 				<blockquote>Это сообщение было продублировано с контактной почты <b>${this.RECIPIENT_EMAIL}</b></blockquote>
 			`
@@ -252,7 +253,7 @@ export class OrderService {
 						path: 'src/templates/order-notification.template.html',
 						replacements: {
 							orderId: orderHash,
-							total,
+							total: cart.total,
 							customerName: customerFullName,
 							customerPhone,
 							gettingMethod,
@@ -395,7 +396,20 @@ export class OrderService {
 			where: { OR: [{ userId }, { token }] },
 			orderBy: { createdAt: 'desc' },
 			include: {
-				items: { include: { product: { include: { category: true } } } }
+				items: {
+					include: {
+						product: {
+							include: {
+								images: {
+									orderBy: {
+										sortOrder: 'asc'
+									}
+								},
+								category: true
+							}
+						}
+					}
+				}
 			},
 			take: +take || 10,
 			skip: +skip || 0
@@ -438,7 +452,20 @@ export class OrderService {
 				AND: [{ id }, userId ? { OR: [{ userId }, { token }] } : { token }]
 			},
 			include: {
-				items: { include: { product: { include: { category: true } } } }
+				items: {
+					include: {
+						product: {
+							include: {
+								images: {
+									orderBy: {
+										sortOrder: 'asc'
+									}
+								},
+								category: true
+							}
+						}
+					}
+				}
 			}
 		})
 
@@ -493,7 +520,20 @@ export class OrderService {
 				paymentMethod
 			},
 			include: {
-				items: { include: { product: { include: { category: true } } } }
+				items: {
+					include: {
+						product: {
+							include: {
+								images: {
+									orderBy: {
+										sortOrder: 'asc'
+									}
+								},
+								category: true
+							}
+						}
+					}
+				}
 			}
 		})
 	}

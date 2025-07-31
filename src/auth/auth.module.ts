@@ -11,7 +11,7 @@ import { AuthService } from './auth.service'
 import { PrismaService } from 'src/prisma.service'
 
 @Module({
-	exports: [AuthService],
+	exports: [AuthService, JwtModule],
 	imports: [
 		UserModule,
 		ConfigModule,

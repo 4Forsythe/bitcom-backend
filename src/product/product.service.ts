@@ -3,17 +3,16 @@ import {
 	NotFoundException,
 	BadRequestException
 } from '@nestjs/common'
-import * as path from 'path'
 import { Prisma } from '@prisma/client'
 
 import { SharpPipe } from 'src/sharp.pipe'
+import { generateSlug } from './utils/generate-slug'
 import { getLayoutVariants } from './utils/get-layout-variants'
 
 import { PrismaService } from 'src/prisma.service'
 import { ProductCategoryService } from 'src/product-category/product-category.service'
 import { CreateProductDto } from './dto/create-product.dto'
 import { ProductParamsDto } from './dto/product-params.dto'
-import { deleteFile } from 'src/lib/delete-file'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 
@@ -35,19 +34,21 @@ export class ProductService {
 
 		return this.prisma.product.create({
 			data: {
+				slug: generateSlug(dto.name),
 				name: dto.name,
 				description: dto.description,
 				count: dto.count,
 				price: dto.price,
+				discountPrice: dto.discountPrice,
 				sku: dto.sku,
+				isArchived: dto.count === 0,
 				isPublished: dto.isPublished,
 				categoryId: dto.categoryId
 			},
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -75,21 +76,22 @@ export class ProductService {
 		return this.prisma.product.update({
 			where: { id },
 			data: {
+				slug: dto.name ? generateSlug(dto.name) : product.slug,
 				name: dto.name,
 				description: dto.description,
-				count: dto.count,
+				count: dto.isArchived ? 0 : dto.count,
 				price: dto.price,
+				discountPrice: dto.discountPrice,
 				sku: dto.sku,
-				isArchived: dto.isArchived,
+				isArchived: dto.count === 0 ? true : dto.isArchived,
 				isPublished: dto.isPublished,
 				categoryId: dto.categoryId,
-				archivedAt: dto.isArchived ? new Date() : undefined
+				archivedAt: dto.isArchived ? new Date() : null
 			},
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -100,57 +102,50 @@ export class ProductService {
 	async uploadImages(
 		productId: string,
 		files: { images?: Express.Multer.File[] },
+		orders: number[] | null,
 		dto: UpdateProductImagesDto
 	) {
-		const product = await this.prisma.product.findFirst({
-			where: { id: productId }
-		})
+		const product = await this.getOne(productId)
 
-		if (!product) {
-			throw new BadRequestException('Такого товара не существует')
-		}
+		// const productImages = await this.prisma.productImage.findMany({
+		// 	where: { productId: product.id }
+		// })
 
-		const productImages = await this.prisma.productImage.findMany({
-			where: { productId }
-		})
+		const preservedIds = dto.preserved.map((item) => item.id)
 
-		console.log('dto.preserved', dto.preserved)
+		// const toDelete = productImages.filter(
+		// 	(image) => !preservedIds.includes(image.id)
+		// )
 
-		const preserved = productImages.filter(
-			(image) => !dto.preserved.includes(image.id)
-		)
-		const toDelete = preserved.map((image) => image.url)
-
-		if (toDelete.length > 0) {
-			try {
-				await this.prisma.productImage.deleteMany({
-					where: {
-						url: {
-							in: toDelete
-						}
+		try {
+			await this.prisma.productImage.deleteMany({
+				where: {
+					productId,
+					id: {
+						notIn: preservedIds
 					}
-				})
-
-				for (const url of toDelete) {
-					console.log('toDelete list:', toDelete)
-					const filePath = path.join(process.cwd(), 'static', url)
-					console.log('FilePath:', filePath)
-					await deleteFile(filePath)
 				}
-			} catch (error) {
-				console.error('Cannot find image to delete:', error)
-				throw new BadRequestException('Cannot find image to delete')
+			})
+
+			for (const { id, sortOrder } of dto.preserved) {
+				await this.prisma.productImage.update({
+					where: { id },
+					data: { sortOrder }
+				})
 			}
+		} catch (error) {
+			console.error('Cannot find image to delete:', error)
+			throw new BadRequestException('Cannot find image to delete')
 		}
 
 		if (files.images && files.images.length > 0) {
 			const images = await new SharpPipe().transform(files.images)
-			console.log('Uploaded images:', images)
 
 			await this.prisma.productImage.createMany({
-				data: images.map((url) => ({
+				data: images.map((url, index) => ({
 					url,
-					productId
+					productId: product.id,
+					sortOrder: orders ? (orders[index] ?? 5) : 5
 				}))
 			})
 		}
@@ -161,9 +156,8 @@ export class ProductService {
 			},
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -171,10 +165,8 @@ export class ProductService {
 		})
 	}
 
-	async getAll(params?: ProductParamsDto) {
-		const { name, categoryId, sortBy, orderBy, take, skip } = params
-
-		const query = getLayoutVariants(name)
+	private getWhereLayout(input: string) {
+		const query = getLayoutVariants(input)
 		const terms = query.map((phrase) => phrase.split(' '))
 
 		const whereConditions: Prisma.ProductWhereInput = {
@@ -191,6 +183,68 @@ export class ProductService {
 			]
 		}
 
+		return whereConditions
+	}
+
+	async getAll(params?: ProductParamsDto) {
+		const { name, categoryId, sortBy, orderBy, take, skip } = params
+
+		const whereConditions = this.getWhereLayout(name)
+
+		let categoryFilter: Prisma.ProductWhereInput = {}
+
+		if (categoryId) {
+			const ids =
+				await this.productCategoryService.getAllNestedCategoriesForNode(
+					categoryId
+				)
+			categoryFilter = { categoryId: { in: ids } }
+		}
+
+		const products = await this.prisma.product.findMany({
+			where: {
+				AND: [
+					whereConditions,
+					categoryFilter,
+					{ isPublished: true },
+					{ isArchived: false }
+				]
+			},
+			include: {
+				images: {
+					orderBy: {
+						sortOrder: 'asc'
+					}
+				},
+				category: true
+			},
+			take: +take || 15,
+			skip: +skip || 0,
+			orderBy: [
+				sortBy ? { [sortBy]: orderBy || 'desc' } : { createdAt: 'desc' },
+				{ id: 'asc' }
+			]
+		})
+
+		const count = await this.prisma.product.count({
+			where: {
+				AND: [
+					whereConditions,
+					categoryFilter,
+					{ isPublished: true },
+					{ isArchived: false }
+				]
+			}
+		})
+
+		return { items: products, count }
+	}
+
+	async getArchive(params?: ProductParamsDto) {
+		const { name, categoryId, sortBy, orderBy, take, skip } = params
+
+		const whereConditions = this.getWhereLayout(name)
+
 		const products = await this.prisma.product.findMany({
 			where: {
 				AND: [
@@ -200,9 +254,8 @@ export class ProductService {
 			},
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -234,16 +287,21 @@ export class ProductService {
 
 		const products = await this.prisma.product.findMany({
 			where: {
-				OR: [
-					{ name: { contains: product.name } },
-					product.categoryId ? { categoryId: product.categoryId } : {}
+				AND: [
+					{ isPublished: true },
+					{ isArchived: false },
+					{
+						OR: [
+							{ name: { contains: product.name } },
+							product.categoryId ? { categoryId: product.categoryId } : {}
+						]
+					}
 				]
 			},
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -258,9 +316,15 @@ export class ProductService {
 
 		const count = await this.prisma.product.count({
 			where: {
-				OR: [
-					{ name: { contains: product.name } },
-					product.categoryId ? { categoryId: product.categoryId } : {}
+				AND: [
+					{ isPublished: true },
+					{ isArchived: false },
+					{
+						OR: [
+							{ name: { contains: product.name } },
+							product.categoryId ? { categoryId: product.categoryId } : {}
+						]
+					}
 				]
 			}
 		})
@@ -273,9 +337,8 @@ export class ProductService {
 			where: { id: { in: ids } },
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -290,13 +353,12 @@ export class ProductService {
 	}
 
 	async getOne(id: string) {
-		const product = await this.prisma.product.findUnique({
-			where: { id },
+		const product = await this.prisma.product.findFirst({
+			where: { OR: [{ id }, { slug: id }] },
 			include: {
 				images: {
-					select: {
-						id: true,
-						url: true
+					orderBy: {
+						sortOrder: 'asc'
 					}
 				},
 				category: true
@@ -308,9 +370,12 @@ export class ProductService {
 		if (product.category) {
 			const categories = await this.prisma.productCategory.findMany()
 
-			const category = this.productCategoryService.getProductCategoryAncestors(
+			if (!categories)
+				throw new NotFoundException('Категории товара не найдены')
+
+			const category = this.productCategoryService.getProductCategoryTree(
 				categories,
-				product.category
+				product.category.id
 			)
 
 			product.category = category

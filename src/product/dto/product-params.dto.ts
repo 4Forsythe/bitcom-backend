@@ -9,6 +9,8 @@ export class ProductParamsDto {
 	ids?: string[]
 	name?: string
 	categoryId?: string
+	isPublished?: boolean
+	isArchived?: boolean
 	sortBy?: ProductSortEnum
 	orderBy?: 'desc' | 'asc'
 	take?: number
