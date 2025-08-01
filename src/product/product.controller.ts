@@ -118,6 +118,11 @@ export class ProductController {
 		return this.productService.getArchive(params)
 	}
 
+	@Get('/discount')
+	getDiscounts(@Query() params?: ProductParamsDto) {
+		return this.productService.getDiscount(params)
+	}
+
 	@Get('similar/:id')
 	getSimilar(@Param('id') id: string, @Query() params?: { take: number }) {
 		return this.productService.getSimilar(id, params)

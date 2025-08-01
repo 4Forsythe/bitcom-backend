@@ -187,7 +187,8 @@ export class ProductService {
 	}
 
 	async getAll(params?: ProductParamsDto) {
-		const { name, categoryId, sortBy, orderBy, take, skip } = params
+		const { name, categoryId, onlyOriginalPrice, sortBy, orderBy, take, skip } =
+			params
 
 		const whereConditions = this.getWhereLayout(name)
 
@@ -206,6 +207,7 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryFilter,
+					onlyOriginalPrice ? { discountPrice: null } : {},
 					{ isPublished: true },
 					{ isArchived: false }
 				]
@@ -231,6 +233,7 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryFilter,
+					onlyOriginalPrice ? { discountPrice: null } : {},
 					{ isPublished: true },
 					{ isArchived: false }
 				]
@@ -273,6 +276,62 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryId ? { categoryId: { equals: categoryId } } : {}
+				]
+			}
+		})
+
+		return { items: products, count }
+	}
+
+	async getDiscount(params?: ProductParamsDto) {
+		const { name, categoryId, sortBy, orderBy, take, skip } = params
+
+		const whereConditions = this.getWhereLayout(name)
+
+		let categoryFilter: Prisma.ProductWhereInput = {}
+
+		if (categoryId) {
+			const ids =
+				await this.productCategoryService.getAllNestedCategoriesForNode(
+					categoryId
+				)
+			categoryFilter = { categoryId: { in: ids } }
+		}
+
+		const products = await this.prisma.product.findMany({
+			where: {
+				AND: [
+					whereConditions,
+					categoryFilter,
+					{ discountPrice: { not: null } },
+					{ isPublished: true },
+					{ isArchived: false }
+				]
+			},
+			include: {
+				images: {
+					orderBy: {
+						sortOrder: 'asc'
+					}
+				},
+				category: true
+			},
+			take: +take || 15,
+			skip: +skip || 0,
+			orderBy: [
+				sortBy ? { [sortBy]: orderBy || 'desc' } : { createdAt: 'desc' },
+				{ id: 'asc' }
+			]
+		})
+
+		const count = await this.prisma.product.count({
+			where: {
+				AND: [
+					whereConditions,
+					categoryFilter,
+					{ discountPrice: { not: null } },
+					{ isPublished: true },
+					{ isArchived: false }
 				]
 			}
 		})
