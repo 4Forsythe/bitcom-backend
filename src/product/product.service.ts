@@ -260,10 +260,21 @@ export class ProductService {
 
 		const whereConditions = this.getWhereLayout(name)
 
+		let categoryFilter: Prisma.ProductWhereInput = {}
+
+		if (categoryId) {
+			const ids =
+				await this.productCategoryService.getAllNestedCategoriesForNode(
+					categoryId
+				)
+			categoryFilter = { categoryId: { in: ids } }
+		}
+
 		const products = await this.prisma.product.findMany({
 			where: {
 				AND: [
 					whereConditions,
+					categoryFilter,
 					...(categoryId ? [{ categoryId: { equals: categoryId } }] : [])
 				]
 			},
@@ -287,6 +298,7 @@ export class ProductService {
 			where: {
 				AND: [
 					whereConditions,
+					categoryFilter,
 					categoryId ? { categoryId: { equals: categoryId } } : {}
 				]
 			}
