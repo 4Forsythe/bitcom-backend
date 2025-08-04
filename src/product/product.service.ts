@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client'
 
 import { SharpPipe } from 'src/sharp.pipe'
 import { generateSlug } from './utils/generate-slug'
+import { deleteExistFile } from './utils/delete-exist-file'
 import { getLayoutVariants } from './utils/get-layout-variants'
 
 import { PrismaService } from 'src/prisma.service'
@@ -16,7 +17,6 @@ import { CreateProductDto } from './dto/create-product.dto'
 import { ProductParamsDto } from './dto/product-params.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
-import { deleteExistFile } from './utils/delete-exist-file'
 
 const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
@@ -272,11 +272,7 @@ export class ProductService {
 
 		const products = await this.prisma.product.findMany({
 			where: {
-				AND: [
-					whereConditions,
-					categoryFilter,
-					...(categoryId ? [{ categoryId: { equals: categoryId } }] : [])
-				]
+				AND: [whereConditions, categoryFilter]
 			},
 			include: {
 				images: {
@@ -296,11 +292,7 @@ export class ProductService {
 
 		const count = await this.prisma.product.count({
 			where: {
-				AND: [
-					whereConditions,
-					categoryFilter,
-					categoryId ? { categoryId: { equals: categoryId } } : {}
-				]
+				AND: [whereConditions, categoryFilter]
 			}
 		})
 
