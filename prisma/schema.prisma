@@ -147,6 +147,7 @@ model Product {
   discountPrice   Decimal?         @db.Decimal(10,2)  @map("discount_price")
   images          ProductImage[]
   sku             String[]
+  guarantee       Int?
   isArchived      Boolean          @default(false)    @map("is_archived")
   isPublished     Boolean          @default(false)    @map("is_published")
   category        ProductCategory  @relation(fields: [categoryId], references: [id])

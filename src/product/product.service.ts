@@ -1,3 +1,4 @@
+import * as path from 'path'
 import {
 	Injectable,
 	NotFoundException,
@@ -15,6 +16,9 @@ import { CreateProductDto } from './dto/create-product.dto'
 import { ProductParamsDto } from './dto/product-params.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
+import { deleteExistFile } from './utils/delete-exist-file'
+
+const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
 @Injectable()
 export class ProductService {
@@ -41,6 +45,7 @@ export class ProductService {
 				price: dto.price,
 				discountPrice: dto.discountPrice,
 				sku: dto.sku,
+				guarantee: dto.guarantee >= 1 ? dto.guarantee : null,
 				isArchived: dto.count === 0,
 				isPublished: dto.isPublished,
 				categoryId: dto.categoryId
@@ -83,6 +88,7 @@ export class ProductService {
 				price: dto.price,
 				discountPrice: dto.discountPrice,
 				sku: dto.sku,
+				guarantee: dto.guarantee >= 1 ? dto.guarantee : null,
 				isArchived: dto.count === 0 ? true : dto.isArchived,
 				isPublished: dto.isPublished,
 				categoryId: dto.categoryId,
@@ -107,15 +113,15 @@ export class ProductService {
 	) {
 		const product = await this.getOne(productId)
 
-		// const productImages = await this.prisma.productImage.findMany({
-		// 	where: { productId: product.id }
-		// })
+		const productImages = await this.prisma.productImage.findMany({
+			where: { productId: product.id }
+		})
 
 		const preservedIds = dto.preserved.map((item) => item.id)
 
-		// const toDelete = productImages.filter(
-		// 	(image) => !preservedIds.includes(image.id)
-		// )
+		const toDelete = productImages.filter(
+			(image) => !preservedIds.includes(image.id)
+		)
 
 		try {
 			await this.prisma.productImage.deleteMany({
@@ -137,6 +143,12 @@ export class ProductService {
 			console.error('Cannot find image to delete:', error)
 			throw new BadRequestException('Cannot find image to delete')
 		}
+
+		await Promise.allSettled(
+			toDelete.map((image) => {
+				return deleteExistFile(imageFileDir, image.url)
+			})
+		)
 
 		if (files.images && files.images.length > 0) {
 			const images = await new SharpPipe().transform(files.images)

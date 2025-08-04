@@ -106,6 +106,7 @@ export class WishlistService {
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
 				items: {
+					where: { product: { isPublished: true } },
 					include: {
 						product: {
 							include: {
@@ -166,6 +167,7 @@ export class WishlistService {
 			where: userId ? { OR: [{ userId }, { token }] } : { token },
 			include: {
 				items: {
+					where: { product: { isPublished: true } },
 					include: {
 						product: {
 							include: {

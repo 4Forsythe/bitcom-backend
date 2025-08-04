@@ -31,6 +31,10 @@ export class CreateProductDto {
 	@IsOptional()
 	sku?: string[]
 
+	@IsNumber()
+	@IsOptional()
+	guarantee?: number
+
 	@IsBoolean()
 	@IsOptional()
 	isArchived?: boolean
