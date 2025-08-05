@@ -5,7 +5,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as sharp from 'sharp'
 
-type Ratio = '4:3' | '1:1' | 'auto'
+type Ratio = '4:3' | '3:4' | '1:1' | 'auto'
 
 const mimeTypes = ['.jpeg', '.jpg', '.png', '.webp']
 
@@ -23,6 +23,7 @@ const ASPECT_PRESETS: Record<
 	{ width: number; height: number }
 > = {
 	'4:3': { width: 1440, height: 1080 },
+	'3:4': { width: 1080, height: 1440 },
 	'1:1': { width: 1000, height: 1000 }
 }
 
@@ -84,10 +85,23 @@ export class SharpPipe
 		let pipeline = sharp(file.buffer).withMetadata()
 
 		const metadata = await pipeline.metadata()
-		const origWidth = metadata.width
-		const origHeight = metadata.height
+		console.log('metadata:', metadata)
+		const origWidth = metadata.width || 0
+		const origHeight = metadata.height || 0
+
+		let appliedRatio: Ratio = ratio
 
 		if (ratio === 'auto') {
+			if (origWidth > origHeight) {
+				appliedRatio = '4:3'
+			} else if (origHeight > origWidth) {
+				appliedRatio = '3:4'
+			} else {
+				appliedRatio = '1:1'
+			}
+		}
+
+		if (appliedRatio === 'auto') {
 			pipeline = pipeline.resize({
 				width: origWidth > 1920 ? 1920 : undefined,
 				height: origHeight > 1440 ? 1440 : undefined,
@@ -95,7 +109,7 @@ export class SharpPipe
 				withoutEnlargement: true
 			})
 		} else {
-			const target = ASPECT_PRESETS[ratio]
+			const target = ASPECT_PRESETS[appliedRatio]
 			pipeline = pipeline.resize({
 				width: target.width,
 				height: target.height,
@@ -105,7 +119,7 @@ export class SharpPipe
 		}
 
 		if (watermark) {
-			pipeline = pipeline.ensureAlpha(0.5).composite([
+			pipeline = pipeline.composite([
 				{
 					input: watermark,
 					gravity: 'southeast',
