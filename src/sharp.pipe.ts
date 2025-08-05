@@ -85,7 +85,7 @@ export class SharpPipe
 		let pipeline = sharp(file.buffer).withMetadata()
 
 		const metadata = await pipeline.metadata()
-		console.log('metadata:', metadata)
+
 		const origWidth = metadata.width || 0
 		const origHeight = metadata.height || 0
 
