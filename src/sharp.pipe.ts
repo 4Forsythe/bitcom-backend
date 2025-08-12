@@ -84,39 +84,39 @@ export class SharpPipe
 
 		let pipeline = sharp(file.buffer).withMetadata()
 
-		const metadata = await pipeline.metadata()
+		// const metadata = await pipeline.metadata()
 
-		const origWidth = metadata.width || 0
-		const origHeight = metadata.height || 0
+		// const origWidth = metadata.width || 0
+		// const origHeight = metadata.height || 0
 
-		let appliedRatio: Ratio = ratio
+		// let appliedRatio: Ratio = ratio
 
-		if (ratio === 'auto') {
-			if (origWidth > origHeight) {
-				appliedRatio = '4:3'
-			} else if (origHeight > origWidth) {
-				appliedRatio = '3:4'
-			} else {
-				appliedRatio = '1:1'
-			}
-		}
+		// if (ratio === 'auto') {
+		// 	if (origWidth > origHeight) {
+		// 		appliedRatio = '4:3'
+		// 	} else if (origHeight > origWidth) {
+		// 		appliedRatio = '3:4'
+		// 	} else {
+		// 		appliedRatio = '1:1'
+		// 	}
+		// }
 
-		if (appliedRatio === 'auto') {
-			pipeline = pipeline.resize({
-				width: origWidth > 1920 ? 1920 : undefined,
-				height: origHeight > 1440 ? 1440 : undefined,
-				fit: 'cover',
-				withoutEnlargement: true
-			})
-		} else {
-			const target = ASPECT_PRESETS[appliedRatio]
-			pipeline = pipeline.resize({
-				width: target.width,
-				height: target.height,
-				fit: 'cover',
-				withoutEnlargement: true
-			})
-		}
+		// if (appliedRatio === 'auto') {
+		// 	pipeline = pipeline.resize({
+		// 		width: origWidth > 1920 ? 1920 : undefined,
+		// 		height: origHeight > 1440 ? 1440 : undefined,
+		// 		fit: 'cover',
+		// 		withoutEnlargement: true
+		// 	})
+		// }
+
+		const target = ASPECT_PRESETS['1:1']
+		pipeline = pipeline.resize({
+			width: target.width,
+			height: target.height,
+			fit: 'cover',
+			withoutEnlargement: true
+		})
 
 		if (watermark) {
 			pipeline = pipeline.composite([
