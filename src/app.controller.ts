@@ -1,6 +1,7 @@
 import { Response } from 'express'
-import { Controller, Get, Param, Res } from '@nestjs/common'
+import { Controller, Get, Post, Body, Param, Res } from '@nestjs/common'
 import { AppService } from './app.service'
+import { CreateServiceRequestDto } from './dto/create-service-request.dto'
 
 @Controller()
 export class AppController {
@@ -14,5 +15,10 @@ export class AppController {
 	@Get('static/:path(*)')
 	getStaticFile(@Param('path') path: string, @Res() res: Response) {
 		return this.appService.getStaticFile(path, res)
+	}
+
+	@Post('send-service-request')
+	sendServiceRequest(@Body() dto: CreateServiceRequestDto) {
+		return this.appService.sendServiceRequest(dto)
 	}
 }

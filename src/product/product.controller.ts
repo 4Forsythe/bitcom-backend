@@ -1,3 +1,4 @@
+import { Response } from 'express'
 import {
 	Controller,
 	Get,
@@ -27,8 +28,6 @@ import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 
 import { Auth } from 'src/auth/auth.decorator'
 import { User } from 'src/user/user.decorator'
-
-import type { Response } from 'express'
 
 @Controller('product')
 export class ProductController {

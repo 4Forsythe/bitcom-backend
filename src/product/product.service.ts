@@ -1,10 +1,12 @@
 import * as path from 'path'
+import { Response } from 'express'
 import {
 	Injectable,
 	NotFoundException,
 	BadRequestException
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
+import { Workbook } from 'exceljs'
 
 import { SharpPipe } from 'src/sharp.pipe'
 import { generateSlug } from './utils/generate-slug'
@@ -18,9 +20,6 @@ import { ProductParamsDto } from './dto/product-params.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 import { generateExcelWorkbook } from './utils/generate-excel-workbook'
-
-import type { Response } from 'express'
-import { Workbook } from 'exceljs'
 
 const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
@@ -88,10 +87,10 @@ export class ProductService {
 				slug: dto.name ? generateSlug(dto.name) : product.slug,
 				name: dto.name,
 				description: dto.description,
-				count: dto.isArchived ? 0 : dto.count,
+				count: dto.isArchived ? 0 : dto.count ? dto.count : null,
 				price: dto.price,
-				discountPrice: dto.discountPrice,
-				sku: dto.sku,
+				discountPrice: dto.discountPrice || null,
+				sku: dto.sku.length > 0 ? dto.sku : [],
 				guarantee: dto.guarantee >= 1 ? dto.guarantee : null,
 				isArchived: dto.count === 0 ? true : dto.isArchived,
 				isPublished: dto.isPublished,
