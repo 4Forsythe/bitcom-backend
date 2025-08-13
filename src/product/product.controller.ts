@@ -10,21 +10,25 @@ import {
 	UploadedFiles,
 	ValidationPipe,
 	BadRequestException,
-	ForbiddenException
+	ForbiddenException,
+	Res
 } from '@nestjs/common'
+import { FileFieldsInterceptor } from '@nestjs/platform-express'
 import { validate } from 'class-validator'
 import { plainToInstance } from 'class-transformer'
 
 import { ProductService } from './product.service'
 import { UserService } from 'src/user/user.service'
 import { CreateProductDto } from './dto/create-product.dto'
-import { ProductParamsDto } from './dto/product-params.dto'
-import { FileFieldsInterceptor } from '@nestjs/platform-express'
-import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
+import { ProductParamsDto } from './dto/product-params.dto'
+import { ProductExportParamsDto } from './dto/product-export-params.dto'
+import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 
 import { Auth } from 'src/auth/auth.decorator'
 import { User } from 'src/user/user.decorator'
+
+import type { Response } from 'express'
 
 @Controller('product')
 export class ProductController {
@@ -118,7 +122,7 @@ export class ProductController {
 		return this.productService.getArchive(params)
 	}
 
-	@Get('/discount')
+	@Get('discount')
 	getDiscounts(@Query() params?: ProductParamsDto) {
 		return this.productService.getDiscount(params)
 	}
@@ -131,6 +135,11 @@ export class ProductController {
 	@Get('total')
 	getTotal() {
 		return this.productService.getTotal()
+	}
+
+	@Get('export')
+	exportFile(@Res() res: Response, @Query() params?: ProductExportParamsDto) {
+		return this.productService.getXLSX(res)
 	}
 
 	@Post()

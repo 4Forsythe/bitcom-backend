@@ -17,6 +17,10 @@ import { CreateProductDto } from './dto/create-product.dto'
 import { ProductParamsDto } from './dto/product-params.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
+import { generateExcelWorkbook } from './utils/generate-excel-workbook'
+
+import type { Response } from 'express'
+import { Workbook } from 'exceljs'
 
 const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
@@ -461,5 +465,32 @@ export class ProductService {
 
 	async getTotal() {
 		return this.prisma.product.count()
+	}
+
+	async getXLSX(res: Response) {
+		const workbook = new Workbook()
+
+		const products = await this.prisma.product.findMany({
+			where: {
+				isPublished: true,
+				isArchived: false
+			},
+			include: {
+				images: true,
+				category: true
+			}
+		})
+
+		await generateExcelWorkbook(workbook, products)
+
+		res.setHeader(
+			'Content-Type',
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		)
+		res.setHeader('Content-Disposition', 'attachment; filename=products.xlsx')
+
+		await workbook.xlsx.write(res)
+
+		res.end()
 	}
 }
