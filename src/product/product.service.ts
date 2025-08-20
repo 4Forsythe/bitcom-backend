@@ -84,7 +84,7 @@ export class ProductService {
 		return this.prisma.product.update({
 			where: { id },
 			data: {
-				slug: dto.name ? generateSlug(dto.name) : product.slug,
+				slug: product.name !== dto.name ? generateSlug(dto.name) : product.slug,
 				name: dto.name,
 				description: dto.description,
 				count: dto.isArchived ? 0 : dto.count ? dto.count : null,
