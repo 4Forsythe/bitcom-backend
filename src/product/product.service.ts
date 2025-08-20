@@ -90,7 +90,7 @@ export class ProductService {
 				count: dto.isArchived ? 0 : dto.count ? dto.count : null,
 				price: dto.price,
 				discountPrice: dto.discountPrice || null,
-				sku: dto.sku.length > 0 ? dto.sku : [],
+				sku: dto.sku || [],
 				guarantee: dto.guarantee >= 1 ? dto.guarantee : null,
 				isArchived: dto.count === 0 ? true : dto.isArchived,
 				isPublished: dto.isPublished,
