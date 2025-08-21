@@ -1,6 +1,7 @@
-import { Controller, Get, Param } from '@nestjs/common'
+import { Controller, Get, Param, Query } from '@nestjs/common'
 
 import { ProductCategoryService } from './product-category.service'
+import { ProductCategoryParamsDto } from './dto/product-category-params.dto'
 
 @Controller('product-category')
 export class ProductCategoryController {
@@ -9,8 +10,8 @@ export class ProductCategoryController {
 	) {}
 
 	@Get()
-	getAll() {
-		return this.productCategoryService.getAll()
+	getAll(@Query() params?: ProductCategoryParamsDto) {
+		return this.productCategoryService.getAll(params)
 	}
 
 	@Get(':id')

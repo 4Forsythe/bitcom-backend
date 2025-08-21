@@ -8,6 +8,7 @@ import { type ProductCategory } from '@prisma/client'
 import { PrismaService } from 'src/prisma.service'
 import { CreateProductCategoryDto } from './dto/create-product-category.dto'
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
+import { ProductCategoryParamsDto } from './dto/product-category-params.dto'
 
 import type { ProductCategoryWithChildren } from './product-category.types'
 
@@ -116,16 +117,27 @@ export class ProductCategoryService {
 	}
 
 	// Получение всего древа категорий
-	async getAll() {
+	async getAll(params?: ProductCategoryParamsDto) {
+		const { flat } = params
+
 		const allCategories = await this.prisma.productCategory.findMany({
 			orderBy: {
 				sortOrder: 'asc'
 			}
 		})
 
-		const items = this.getProductCategoriesTree(allCategories)
-
 		const count = await this.prisma.productCategory.count()
+
+		if (flat) {
+			const sorted = allCategories.sort((a, b) => {
+				if (a.parentId && !b.parentId) return 1
+				if (!a.parentId && b.parentId) return -1
+			})
+
+			return { items: sorted, count }
+		}
+
+		const items = this.getProductCategoriesTree(allCategories)
 
 		return { items, count }
 	}

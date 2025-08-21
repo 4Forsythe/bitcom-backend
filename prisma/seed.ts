@@ -116,7 +116,21 @@ const prisma = new PrismaClient()
 
 async function main() {
 	try {
-		await up()
+		await prisma.product.createMany({
+			data: Array.from({ length: 50 }, (_, index) => {
+				return {
+					name: `Товар №${index}`,
+					slug: `tovar-${index}`,
+					categoryId: 'af285c91-7ea7-4603-9de2-c330660351d9',
+					price: 20000,
+					count: 5,
+					isPublished: true
+				}
+			})
+		})
+
+		// await down()
+		// await up()
 	} catch (error) {
 		console.error(error)
 	}

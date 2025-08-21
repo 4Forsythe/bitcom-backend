@@ -11,6 +11,7 @@ import { OrderModule } from './order/order.module'
 import { PaymentModule } from './payment/payment.module'
 import { ConfigModule } from '@nestjs/config'
 import { envValidationSchema } from './config/env.validation'
+import { DiscountModule } from './discount/discount.module';
 
 @Module({
 	imports: [
@@ -25,7 +26,8 @@ import { envValidationSchema } from './config/env.validation'
 		ProductCategoryModule,
 		WishListModule,
 		OrderModule,
-		PaymentModule
+		PaymentModule,
+		DiscountModule
 	],
 	controllers: [AppController],
 	providers: [AppService]

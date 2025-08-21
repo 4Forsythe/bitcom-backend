@@ -109,16 +109,17 @@ model Wishlist {
 }
 
 model ProductCategory {
-  id          String            @id @default(uuid())
+  id                String            @id @default(uuid())
 
-  name        String
-  imageUrl    String?           @map("image_url")
-  parentId    String?           @map("parent_id")
-  parent      ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id])
-  sortOrder   Int               @map("sort_order")
+  name              String
+  imageUrl          String?           @map("image_url")
+  parentId          String?           @map("parent_id")
+  parent            ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id])
+  sortOrder         Int               @map("sort_order")
 
-  children    ProductCategory[] @relation("ProductCategoryHierarchy")
-  products    Product[]
+  products          Product[]
+  discountTargets   DiscountTarget[]
+  children          ProductCategory[] @relation("ProductCategoryHierarchy")
 
   @@map("product_categories")
   @@index([parentId, sortOrder])
@@ -155,6 +156,7 @@ model Product {
   
   cartItems       CartItem[]
   wishlistItems   WishlistItem[]
+  discountTargets DiscountTarget[]
   orderItems      OrderItem[]
 
   createdAt       DateTime         @default(now()) @map("created_at")
@@ -162,6 +164,40 @@ model Product {
   archivedAt      DateTime?        @map("archived_at")
 
   @@map("products")
+}
+
+model Discount {
+  id          String        @id             @default(uuid())
+
+  name        String
+  type        DiscountType  @default(PERCENT)
+  amount      Decimal       @db.Decimal(10,2)
+  isArchived  Boolean       @default(false) @map("is_archived")
+  startedAt   DateTime      @default(now()) @map("started_at")
+  expiresAt   DateTime                      @map("expires_at")
+
+  targets     DiscountTarget[]
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt      @map("updated_at")
+
+  @@map("discounts")
+}
+
+model DiscountTarget {
+  id              String              @id @default(uuid())
+
+  type            DiscountTargetType
+  priority        Int                 @default(0)
+  productId       String?             @map("product_id")
+  categoryId      String?             @map("category_id")
+  discountId      String              @map("discount_id")
+
+  product         Product?            @relation(fields: [productId], references: [id])
+  category        ProductCategory?    @relation(fields: [categoryId], references: [id])
+  discount        Discount            @relation(fields: [discountId], references: [id])
+
+  @@map("discount_targets")
 }
 
 model OrderItem {
@@ -203,4 +239,13 @@ model Order {
   archivedAt         DateTime?    @map("archived_at")
 
   @@map("orders")
+}
+
+enum DiscountType {
+  PERCENT
+}
+
+enum DiscountTargetType {
+  PRODUCT
+  CATEGORY
 }
