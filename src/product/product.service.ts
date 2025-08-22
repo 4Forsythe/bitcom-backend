@@ -20,6 +20,7 @@ import { ProductParamsDto } from './dto/product-params.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 import { generateExcelWorkbook } from './utils/generate-excel-workbook'
+import { ProductCategoryWithChildren } from 'src/product-category/product-category.types'
 
 const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
@@ -374,6 +375,7 @@ export class ProductService {
 					where: {
 						discount: {
 							isArchived: false,
+							isPublished: true,
 							expiresAt: {
 								gte: new Date()
 							}
@@ -573,6 +575,10 @@ export class ProductService {
 	async getXLSX(res: Response) {
 		const workbook = new Workbook()
 
+		const categories = await this.productCategoryService.getAll({
+			flat: false
+		})
+
 		const products = await this.prisma.product.findMany({
 			where: {
 				isPublished: true,
@@ -584,7 +590,11 @@ export class ProductService {
 			}
 		})
 
-		await generateExcelWorkbook(workbook, products)
+		await generateExcelWorkbook(
+			workbook,
+			categories.items as ProductCategoryWithChildren[],
+			products
+		)
 
 		res.setHeader(
 			'Content-Type',

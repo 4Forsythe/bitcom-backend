@@ -118,8 +118,6 @@ export class ProductCategoryService {
 
 	// Получение всего древа категорий
 	async getAll(params?: ProductCategoryParamsDto) {
-		const { flat } = params
-
 		const allCategories = await this.prisma.productCategory.findMany({
 			orderBy: {
 				sortOrder: 'asc'
@@ -128,7 +126,7 @@ export class ProductCategoryService {
 
 		const count = await this.prisma.productCategory.count()
 
-		if (flat) {
+		if (params.flat) {
 			const sorted = allCategories.sort((a, b) => {
 				if (a.parentId && !b.parentId) return 1
 				if (!a.parentId && b.parentId) return -1
