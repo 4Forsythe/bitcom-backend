@@ -15,16 +15,18 @@ async function renderCategoryTree(
 	productMapping: Record<string, ProductType[]>,
 	deep: number = 0
 ) {
-	const row = sheet.addRow([`${'		'.repeat(deep)}${category.name}`])
+	const row = sheet.addRow([`${'  '.repeat(deep)}${category.name}`])
 
 	row.font = { bold: true }
 	row.alignment = { horizontal: 'left' }
 	row.eachCell((cell) => {
+		cell.font = {
+			color: { argb: 'FFFFFFFF' }
+		}
 		cell.fill = {
 			type: 'pattern',
 			pattern: 'solid',
-			fgColor: { argb: 'FF000000' },
-			bgColor: { argb: 'FFFFFFFF' }
+			fgColor: { argb: 'FF242424' }
 		}
 	})
 
