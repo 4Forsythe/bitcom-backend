@@ -84,7 +84,10 @@ export class ProductService {
 		return this.prisma.product.update({
 			where: { id },
 			data: {
-				slug: product.name !== dto.name ? generateSlug(dto.name) : product.slug,
+				slug:
+					dto.name && product.name !== dto.name
+						? generateSlug(dto.name)
+						: product.slug,
 				name: dto.name,
 				description: dto.description,
 				count: dto.isArchived ? 0 : dto.count ? dto.count : null,
@@ -233,6 +236,23 @@ export class ProductService {
 						sortOrder: 'asc'
 					}
 				},
+				discountTargets: {
+					where: {
+						discount: {
+							isArchived: false,
+							isPublished: true,
+							expiresAt: {
+								gte: new Date()
+							}
+						}
+					},
+					include: {
+						discount: true
+					},
+					orderBy: {
+						priority: 'asc'
+					}
+				},
 				category: true
 			},
 			take: +take || 15,
@@ -281,6 +301,23 @@ export class ProductService {
 				images: {
 					orderBy: {
 						sortOrder: 'asc'
+					}
+				},
+				discountTargets: {
+					where: {
+						discount: {
+							isArchived: false,
+							isPublished: true,
+							expiresAt: {
+								gte: new Date()
+							}
+						}
+					},
+					include: {
+						discount: true
+					},
+					orderBy: {
+						priority: 'asc'
 					}
 				},
 				category: true
@@ -333,6 +370,22 @@ export class ProductService {
 						sortOrder: 'asc'
 					}
 				},
+				discountTargets: {
+					where: {
+						discount: {
+							isArchived: false,
+							expiresAt: {
+								gte: new Date()
+							}
+						}
+					},
+					include: {
+						discount: true
+					},
+					orderBy: {
+						priority: 'asc'
+					}
+				},
 				category: true
 			},
 			take: +take || 15,
@@ -382,6 +435,23 @@ export class ProductService {
 						sortOrder: 'asc'
 					}
 				},
+				discountTargets: {
+					where: {
+						discount: {
+							isArchived: false,
+							isPublished: true,
+							expiresAt: {
+								gte: new Date()
+							}
+						}
+					},
+					include: {
+						discount: true
+					},
+					orderBy: {
+						priority: 'asc'
+					}
+				},
 				category: true
 			},
 			take: +take || 10,
@@ -419,6 +489,23 @@ export class ProductService {
 						sortOrder: 'asc'
 					}
 				},
+				discountTargets: {
+					where: {
+						discount: {
+							isArchived: false,
+							isPublished: true,
+							expiresAt: {
+								gte: new Date()
+							}
+						}
+					},
+					include: {
+						discount: true
+					},
+					orderBy: {
+						priority: 'asc'
+					}
+				},
 				category: true
 			}
 		})
@@ -437,6 +524,23 @@ export class ProductService {
 				images: {
 					orderBy: {
 						sortOrder: 'asc'
+					}
+				},
+				discountTargets: {
+					where: {
+						discount: {
+							isArchived: false,
+							isPublished: true,
+							expiresAt: {
+								gte: new Date()
+							}
+						}
+					},
+					include: {
+						discount: true
+					},
+					orderBy: {
+						priority: 'asc'
 					}
 				},
 				category: true

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import {
+	BadRequestException,
+	Injectable,
+	NotFoundException
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 import { v4 as uuid } from 'uuid'
@@ -18,6 +22,8 @@ export class WishlistService {
 
 	WISHLIST_TOKEN_NAME = 'WISHLIST_TOKEN'
 	EXPIRE_DAY_WISHLIST_TOKEN = 14
+
+	MAX_ITEMS_IN_WISHLIST = 30
 
 	async create(
 		req: Request,
@@ -72,6 +78,12 @@ export class WishlistService {
 		}
 
 		if (!item) {
+			if (wishlist.items.length >= this.MAX_ITEMS_IN_WISHLIST) {
+				throw new BadRequestException(
+					'Слишком много товаров в списке желаемого'
+				)
+			}
+
 			item = await this.prisma.wishlistItem.create({
 				data: {
 					productId: dto.productId,
@@ -114,6 +126,14 @@ export class WishlistService {
 									select: {
 										id: true,
 										url: true
+									}
+								},
+								discountTargets: {
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
 									}
 								},
 								category: true
@@ -175,6 +195,14 @@ export class WishlistService {
 									select: {
 										id: true,
 										url: true
+									}
+								},
+								discountTargets: {
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
 									}
 								},
 								category: true

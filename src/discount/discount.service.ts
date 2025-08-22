@@ -38,7 +38,7 @@ export class DiscountService {
 		const discount = await this.prisma.discount.create({
 			data: {
 				name: dto.name,
-				type: dto.type as DiscountType,
+				type: DiscountType.PERCENT,
 				amount: dto.amount,
 				startedAt,
 				expiresAt
@@ -79,10 +79,18 @@ export class DiscountService {
 		const { sortBy, orderBy, take, skip } = params
 
 		const discounts = await this.prisma.discount.findMany({
+			where: {
+				isPublished: true
+			},
 			include: {
 				targets: {
 					include: {
-						product: true,
+						product: {
+							include: {
+								images: true,
+								category: true
+							}
+						},
 						category: true
 					}
 				}
@@ -119,6 +127,7 @@ export class DiscountService {
 		const discounts = await this.prisma.discount.findMany({
 			where: {
 				isArchived: false,
+				isPublished: true,
 				expiresAt: {
 					gt: now
 				}
@@ -126,7 +135,12 @@ export class DiscountService {
 			include: {
 				targets: {
 					include: {
-						product: true,
+						product: {
+							include: {
+								images: true,
+								category: true
+							}
+						},
 						category: true
 					}
 				}

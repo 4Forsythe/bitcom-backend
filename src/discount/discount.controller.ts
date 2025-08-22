@@ -42,7 +42,7 @@ export class DiscountController {
 		return this.discountService.getAll(params)
 	}
 
-	@Get('actial')
+	@Get('actual')
 	getActual(@Query() params?: DiscountParamsDto) {
 		return this.discountService.getActual(params)
 	}

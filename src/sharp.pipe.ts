@@ -68,7 +68,9 @@ export class SharpPipe
 		file: Express.Multer.File,
 		ratio: Ratio = 'auto'
 	): Promise<string> {
-		if (!mimeTypes.some((mime) => file.originalname.endsWith(mime))) {
+		if (
+			!mimeTypes.some((mime) => file.originalname.toLowerCase().endsWith(mime))
+		) {
 			throw new BadRequestException(
 				'Недопустимый формат файла (только .JPG, .JPEG или .PNG)'
 			)
@@ -114,8 +116,9 @@ export class SharpPipe
 		pipeline = pipeline.resize({
 			width: target.width,
 			height: target.height,
-			fit: 'cover',
-			withoutEnlargement: true
+			fit: 'contain',
+			withoutEnlargement: true,
+			background: { r: 0, g: 0, b: 0, alpha: 0 }
 		})
 
 		if (watermark) {

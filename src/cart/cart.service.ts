@@ -24,6 +24,8 @@ export class CartService {
 	CART_TOKEN_NAME = 'CART_TOKEN'
 	EXPIRE_DAY_CART_TOKEN = 14
 
+	MAX_ITEMS_IN_CART = 30
+
 	async create(
 		req: Request,
 		res: Response,
@@ -78,6 +80,10 @@ export class CartService {
 		}
 
 		if (!item) {
+			if (cart.items.length >= this.MAX_ITEMS_IN_CART) {
+				throw new BadRequestException('Слишком много товаров в корзине')
+			}
+
 			item = await this.prisma.cartItem.create({
 				data: {
 					productId: dto.productId,
@@ -120,6 +126,14 @@ export class CartService {
 									select: {
 										id: true,
 										url: true
+									}
+								},
+								discountTargets: {
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
 									}
 								},
 								category: true
@@ -172,6 +186,14 @@ export class CartService {
 									select: {
 										id: true,
 										url: true
+									}
+								},
+								discountTargets: {
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
 									}
 								},
 								category: true
@@ -248,6 +270,14 @@ export class CartService {
 										url: true
 									}
 								},
+								discountTargets: {
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
+									}
+								},
 								category: true
 							}
 						}
@@ -310,6 +340,14 @@ export class CartService {
 									select: {
 										id: true,
 										url: true
+									}
+								},
+								discountTargets: {
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
 									}
 								},
 								category: true
