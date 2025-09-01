@@ -131,6 +131,11 @@ export class ProductController {
 		return this.productService.getDiscount(params)
 	}
 
+	@Get('for-sitemap')
+	getAllForSitemap() {
+		return this.productService.getAllForSitemap()
+	}
+
 	@Get('similar/:id')
 	getSimilar(@Param('id') id: string, @Query() params?: { take: number }) {
 		return this.productService.getSimilar(id, params)

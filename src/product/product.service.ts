@@ -688,4 +688,18 @@ export class ProductService {
 
 		res.end()
 	}
+
+	async getAllForSitemap() {
+		const products = await this.prisma.product.findMany({
+			where: {
+				isArchived: false,
+				isPublished: true
+			},
+			take: 300
+		})
+
+		const count = await this.prisma.product.count()
+
+		return { items: products, count }
+	}
 }
