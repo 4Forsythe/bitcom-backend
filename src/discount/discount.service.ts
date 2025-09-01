@@ -40,6 +40,7 @@ export class DiscountService {
 				name: dto.name,
 				type: DiscountType.PERCENT,
 				amount: dto.amount,
+				isArchived: dto.isArchived,
 				startedAt,
 				expiresAt
 			}
@@ -76,61 +77,23 @@ export class DiscountService {
 	}
 
 	async getAll(params?: DiscountParamsDto) {
-		const { sortBy, orderBy, take, skip } = params
-
-		const discounts = await this.prisma.discount.findMany({
-			where: {
-				isPublished: true
-			},
-			include: {
-				targets: {
-					include: {
-						product: {
-							include: {
-								images: true,
-								category: true
-							}
-						},
-						category: true
-					}
-				}
-			},
-			take: +take || 15,
-			skip: +skip || 0,
-			orderBy: [
-				sortBy ? { [sortBy]: orderBy || 'desc' } : { amount: 'desc' },
-				{ id: 'asc' }
-			]
-		})
-
-		if (!discounts) {
-			return { items: [], count: 0 }
-		}
-
-		// DiscountType sort
-		// const sorted = discounts.sort((a, b) => {
-		// 	if (a.type === 'PERCENT' && b.type !== 'FIXED') return -1
-		// 	if (a.type !== 'PERCENT' && b.type === 'FIXED') return 1
-		// 	return Number(a.amount) - Number(b.amount)
-		// })
-
-		const count = await this.prisma.discount.count({})
-
-		return { items: discounts, count }
-	}
-
-	async getActual(params?: DiscountParamsDto) {
-		const { sortBy, orderBy, take, skip } = params
+		const { name, sortBy, orderBy, take, skip } = params
 
 		const now = new Date()
 
 		const discounts = await this.prisma.discount.findMany({
 			where: {
-				isArchived: false,
-				isPublished: true,
-				expiresAt: {
-					gt: now
-				}
+				AND: [
+					{ isArchived: false },
+					{
+						expiresAt: {
+							gt: now
+						}
+					},
+					{
+						OR: [{ name: { contains: name, mode: 'insensitive' } }]
+					}
+				]
 			},
 			include: {
 				targets: {
@@ -176,14 +139,118 @@ export class DiscountService {
 		return { items: discounts, count }
 	}
 
+	async getArchive(params?: DiscountParamsDto) {
+		const { name, sortBy, orderBy, take, skip } = params
+
+		const now = new Date()
+
+		const discounts = await this.prisma.discount.findMany({
+			where: {
+				AND: [
+					{
+						OR: [
+							{ isArchived: true },
+							{
+								expiresAt: {
+									lt: now
+								}
+							}
+						]
+					},
+					{
+						OR: [{ name: { contains: name, mode: 'insensitive' } }]
+					}
+				]
+			},
+			include: {
+				targets: {
+					include: {
+						product: {
+							include: {
+								images: true,
+								category: true
+							}
+						},
+						category: true
+					}
+				}
+			},
+			take: +take || 15,
+			skip: +skip || 0,
+			orderBy: [
+				sortBy ? { [sortBy]: orderBy || 'desc' } : { amount: 'desc' },
+				{ id: 'asc' }
+			]
+		})
+
+		if (!discounts) {
+			return { items: [], count: 0 }
+		}
+
+		// DiscountType sort
+		// const sorted = discounts.sort((a, b) => {
+		// 	if (a.type === 'PERCENT' && b.type !== 'FIXED') return -1
+		// 	if (a.type !== 'PERCENT' && b.type === 'FIXED') return 1
+		// 	return Number(a.amount) - Number(b.amount)
+		// })
+
+		const count = await this.prisma.discount.count({})
+
+		return { items: discounts, count }
+	}
+
 	async getOne(id: string) {
 		const discount = await this.prisma.discount.findFirst({
 			where: { id },
 			include: {
 				targets: {
 					include: {
-						product: true,
-						category: true
+						product: {
+							include: {
+								images: {
+									orderBy: {
+										sortOrder: 'asc'
+									}
+								},
+								discountTargets: {
+									where: {
+										discount: {
+											isArchived: false,
+											expiresAt: {
+												gte: new Date()
+											}
+										}
+									},
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
+									}
+								},
+								category: true
+							}
+						},
+						category: {
+							include: {
+								discountTargets: {
+									where: {
+										discount: {
+											isArchived: false,
+											expiresAt: {
+												gte: new Date()
+											}
+										}
+									},
+									include: {
+										discount: true
+									},
+									orderBy: {
+										priority: 'asc'
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -205,10 +272,10 @@ export class DiscountService {
 			throw new NotFoundException('Акция не найдена')
 		}
 
-		const startedAt = new Date(dto.startedAt)
-		const expiresAt = new Date(dto.expiresAt)
+		const startedAt = dto.startedAt ? new Date(dto.startedAt) : undefined
+		const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined
 
-		if (expiresAt <= startedAt) {
+		if (startedAt && expiresAt && expiresAt <= startedAt) {
 			throw new BadRequestException(
 				'Дата завершения акции должна быть позже даты начала'
 			)
@@ -225,6 +292,10 @@ export class DiscountService {
 				expiresAt
 			}
 		})
+
+		if (!dto.products && !dto.categoryId) {
+			return this.getOne(discount.id)
+		}
 
 		const targets = await this.prisma.discountTarget.findMany({
 			where: { discountId: discount.id }
@@ -250,19 +321,26 @@ export class DiscountService {
 			(!categoryTarget && dto.categoryId) ||
 			(dto.categoryId && categoryTarget.categoryId !== dto.categoryId)
 		) {
-			await this.prisma.discountTarget.upsert({
-				where: { id: categoryTarget.id },
-				create: {
-					type: DiscountTargetType.CATEGORY,
-					priority:
-						dto.priority && dto.priority > 0 ? dto.priority - 1 : dto.priority,
-					categoryId: dto.categoryId,
-					discountId: discount.id
-				},
-				update: {
-					categoryId: dto.categoryId
-				}
-			})
+			if (categoryTarget) {
+				await this.prisma.discountTarget.update({
+					where: { id: categoryTarget.id },
+					data: {
+						categoryId: dto.categoryId
+					}
+				})
+			} else if (!categoryTarget) {
+				await this.prisma.discountTarget.create({
+					data: {
+						type: DiscountTargetType.CATEGORY,
+						priority:
+							dto.priority && dto.priority > 0
+								? dto.priority - 1
+								: dto.priority,
+						categoryId: dto.categoryId,
+						discountId: discount.id
+					}
+				})
+			}
 
 			try {
 				await this.prisma.discountTarget.deleteMany({

@@ -7,10 +7,12 @@ export enum ProductSortEnum {
 }
 
 export class ProductParamsDto {
-	ids?: string[]
+	ids?: string
 	name?: string
 	categoryId?: string
+	discountId?: string
 	onlyOriginalPrice?: boolean
+	type?: 'all' | 'archive' | 'unpublished'
 	sortBy?: ProductSortEnum
 	orderBy?: 'desc' | 'asc'
 	take?: number

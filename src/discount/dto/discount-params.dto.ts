@@ -6,6 +6,7 @@ export enum DiscountSortEnum {
 }
 
 export class DiscountParamsDto {
+	name?: string
 	categoryId?: string
 	sortBy?: DiscountSortEnum
 	orderBy?: 'desc' | 'asc'

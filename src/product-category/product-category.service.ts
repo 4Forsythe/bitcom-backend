@@ -10,7 +10,7 @@ import { CreateProductCategoryDto } from './dto/create-product-category.dto'
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto'
 import { ProductCategoryParamsDto } from './dto/product-category-params.dto'
 
-import type { ProductCategoryWithChildren } from './product-category.types'
+import type { ProductCategoryWithChildren } from './types/product-category.types'
 
 @Injectable()
 export class ProductCategoryService {
@@ -119,9 +119,16 @@ export class ProductCategoryService {
 	// Получение всего древа категорий
 	async getAll(params?: ProductCategoryParamsDto) {
 		const allCategories = await this.prisma.productCategory.findMany({
-			orderBy: {
-				sortOrder: 'asc'
-			}
+			include: {
+				discountTargets: {
+					where: {
+						discount: { isArchived: false, expiresAt: { gte: new Date() } }
+					},
+					include: { discount: true },
+					orderBy: { priority: 'asc' as const }
+				}
+			},
+			orderBy: { sortOrder: 'asc' }
 		})
 
 		const count = await this.prisma.productCategory.count()
@@ -145,14 +152,61 @@ export class ProductCategoryService {
 		const allCategories = await this.prisma.productCategory.findMany()
 
 		const category = await this.prisma.productCategory.findFirst({
-			where: { id }
+			where: { id },
+			include: {
+				discountTargets: {
+					where: {
+						discount: { isArchived: false, expiresAt: { gte: new Date() } }
+					},
+					include: { discount: true },
+					orderBy: { priority: 'asc' as const }
+				}
+			}
 		})
 
 		if (!category) {
 			throw new NotFoundException('Категория не была найдена')
 		}
 
-		return this.getProductCategoryTree(allCategories, category.id)
+		return this.getTreeToProductCategory(allCategories, category.id)
+	}
+
+	async getTreeBestDiscount(categoryId: string) {
+		let category = await this.prisma.productCategory.findFirst({
+			where: { id: categoryId },
+			include: {
+				discountTargets: {
+					where: {
+						discount: { isArchived: false, expiresAt: { gte: new Date() } }
+					},
+					include: { discount: true },
+					orderBy: { priority: 'asc' }
+				}
+			}
+		})
+
+		while (category) {
+			if (category.discountTargets.length > 0) {
+				return category.discountTargets
+			}
+
+			if (!category.parentId) break
+
+			category = await this.prisma.productCategory.findFirst({
+				where: { id: category.parentId },
+				include: {
+					discountTargets: {
+						where: {
+							discount: { isArchived: false, expiresAt: { gte: new Date() } }
+						},
+						include: { discount: true },
+						orderBy: { priority: 'asc' }
+					}
+				}
+			})
+		}
+
+		return []
 	}
 
 	// Вспомогательная функция для проверки dto на наличие валидных id
@@ -231,7 +285,7 @@ export class ProductCategoryService {
 	}
 
 	// Получаем полный путь от корня до конечной категории
-	getProductCategoryTree(categories: ProductCategory[], categoryId: string) {
+	getTreeToProductCategory(categories: ProductCategory[], categoryId: string) {
 		const copy = categories.map((category) => ({ ...category, children: [] }))
 
 		const map = new Map<string, ProductCategoryWithChildren>()

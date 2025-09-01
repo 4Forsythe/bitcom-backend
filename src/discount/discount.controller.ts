@@ -42,9 +42,19 @@ export class DiscountController {
 		return this.discountService.getAll(params)
 	}
 
-	@Get('actual')
-	getActual(@Query() params?: DiscountParamsDto) {
-		return this.discountService.getActual(params)
+	@Get('archive')
+	@Auth()
+	async getArchive(
+		@User('id') userId: string,
+		@Query() params?: DiscountParamsDto
+	) {
+		const user = await this.userService.getOne(userId)
+
+		if (!user.role) {
+			throw new ForbiddenException('Нет доступа к этому ресурсу')
+		}
+
+		return this.discountService.getArchive(params)
 	}
 
 	@Get(':id')

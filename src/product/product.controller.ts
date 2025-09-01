@@ -103,6 +103,11 @@ export class ProductController {
 
 	@Get()
 	getAll(@Query() params?: ProductParamsDto) {
+		if (params.ids) {
+			const { ids } = params
+			return this.productService.getByIds(ids.split(','))
+		}
+
 		return this.productService.getAll(params)
 	}
 
@@ -139,11 +144,6 @@ export class ProductController {
 	@Get('export')
 	exportFile(@Res() res: Response, @Query() params?: ProductExportParamsDto) {
 		return this.productService.getXLSX(res)
-	}
-
-	@Post()
-	getByIds(@Body() dto: { ids: string[] }) {
-		return this.productService.getByIds(dto.ids)
 	}
 
 	@Get(':id')

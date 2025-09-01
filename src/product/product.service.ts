@@ -5,7 +5,8 @@ import {
 	NotFoundException,
 	BadRequestException
 } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
+import { DiscountType, Prisma } from '@prisma/client'
+import { Decimal } from '@prisma/client/runtime/library'
 import { Workbook } from 'exceljs'
 
 import { SharpPipe } from 'src/sharp.pipe'
@@ -20,7 +21,11 @@ import { ProductParamsDto } from './dto/product-params.dto'
 import { UpdateProductDto } from './dto/update-product.dto'
 import { UpdateProductImagesDto } from './dto/update-product-images.dto'
 import { generateExcelWorkbook } from './utils/generate-excel-workbook'
-import { ProductCategoryWithChildren } from 'src/product-category/product-category.types'
+import { ProductCategoryWithChildren } from 'src/product-category/types/product-category.types'
+import {
+	ProductResponse,
+	ProductWithDiscountTargets
+} from './types/product.types'
 
 const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
@@ -30,6 +35,18 @@ export class ProductService {
 		private productCategoryService: ProductCategoryService,
 		private prisma: PrismaService
 	) {}
+
+	private defaultProductInclude = {
+		images: { orderBy: { sortOrder: 'asc' as const } },
+		discountTargets: {
+			where: {
+				discount: { isArchived: false, expiresAt: { gte: new Date() } }
+			},
+			include: { discount: true },
+			orderBy: { priority: 'asc' as const }
+		},
+		category: true
+	}
 
 	async create(dto: CreateProductDto) {
 		const category = await this.prisma.productCategory.findFirst({
@@ -179,7 +196,26 @@ export class ProductService {
 						sortOrder: 'asc'
 					}
 				},
-				category: true
+				category: {
+					include: {
+						discountTargets: {
+							where: {
+								discount: {
+									isArchived: false,
+									expiresAt: {
+										gte: new Date()
+									}
+								}
+							},
+							include: {
+								discount: true
+							},
+							orderBy: {
+								priority: 'asc'
+							}
+						}
+					}
+				}
 			}
 		})
 	}
@@ -205,9 +241,114 @@ export class ProductService {
 		return whereConditions
 	}
 
+	private async getProductWithBestDiscount(
+		product: ProductWithDiscountTargets
+	): Promise<ProductResponse> {
+		let discountPrice = product.discountPrice
+
+		const productDiscounts = product.discountTargets.map((dt) => ({
+			id: dt.discount.id,
+			name: dt.discount.name,
+			type: dt.discount.type,
+			targetType: dt.type,
+			amount: dt.discount.amount,
+			priority: dt.priority,
+			startedAt: dt.discount.startedAt,
+			expiresAt: dt.discount.expiresAt
+		}))
+
+		const categoryTreeDiscounts =
+			await this.productCategoryService.getTreeBestDiscount(product.categoryId)
+
+		const categoryDiscounts = categoryTreeDiscounts.map((dt) => ({
+			id: dt.discount.id,
+			name: dt.discount.name,
+			type: dt.discount.type,
+			targetType: dt.type,
+			amount: dt.discount.amount,
+			priority: dt.priority,
+			startedAt: dt.discount.startedAt,
+			expiresAt: dt.discount.expiresAt
+		}))
+
+		const merged = [...productDiscounts, ...categoryDiscounts]
+
+		if (merged.length === 0) {
+			return {
+				id: product.id,
+				slug: product.slug,
+				name: product.name,
+				images: product.images,
+				description: product.description,
+				count: product.count,
+				price: product.price,
+				discountPrice: product.discountPrice,
+				sku: product.sku,
+				guarantee: product.guarantee,
+				isArchived: product.isArchived,
+				isPublished: product.isPublished,
+				category: product.category,
+				categoryId: product.categoryId,
+				createdAt: product.createdAt,
+				updatedAt: product.updatedAt,
+				archivedAt: product.archivedAt
+			}
+		}
+
+		merged.sort((a, b) => a.priority - b.priority)
+
+		const discount = merged[0]
+
+		if (discount.type === DiscountType.PERCENT) {
+			discountPrice = new Decimal(product.price).minus(
+				new Decimal(product.price).div(100).times(discount.amount)
+			)
+		} else {
+			discountPrice = new Decimal(discount.amount)
+		}
+
+		return {
+			id: product.id,
+			slug: product.slug,
+			name: product.name,
+			images: product.images,
+			description: product.description,
+			count: product.count,
+			price: product.price,
+			discountPrice,
+			sku: product.sku,
+			guarantee: product.guarantee,
+			isArchived: product.isArchived,
+			isPublished: product.isPublished,
+			discount: {
+				id: discount.id,
+				name: discount.name,
+				type: discount.type,
+				targetType: discount.targetType,
+				amount: String(discount.amount),
+				priority: discount.priority,
+				startedAt: discount.startedAt.toISOString(),
+				expiresAt: discount.expiresAt.toISOString()
+			},
+			category: product.category,
+			categoryId: product.categoryId,
+			createdAt: product.createdAt,
+			updatedAt: product.updatedAt,
+			archivedAt: product.archivedAt
+		}
+	}
+
 	async getAll(params?: ProductParamsDto) {
-		const { name, categoryId, onlyOriginalPrice, sortBy, orderBy, take, skip } =
-			params
+		const {
+			name,
+			categoryId,
+			discountId,
+			onlyOriginalPrice,
+			sortBy,
+			orderBy,
+			take,
+			skip
+		} = params
 
 		const whereConditions = this.getWhereLayout(name)
 
@@ -226,35 +367,38 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryFilter,
-					onlyOriginalPrice ? { discountPrice: null } : {},
+					onlyOriginalPrice
+						? {
+								discountPrice: null,
+								discountTargets: { none: {} },
+								category: { discountTargets: { none: {} } }
+							}
+						: {},
+					discountId ? { discountTargets: { some: { discountId } } } : {},
 					{ isPublished: true },
-					{ isArchived: false }
+					!discountId ? { isArchived: false } : {}
 				]
 			},
 			include: {
-				images: {
-					orderBy: {
-						sortOrder: 'asc'
-					}
-				},
+				images: { orderBy: { sortOrder: 'asc' as const } },
 				discountTargets: {
 					where: {
-						discount: {
-							isArchived: false,
-							isPublished: true,
-							expiresAt: {
-								gte: new Date()
-							}
-						}
+						discount: { isArchived: false, expiresAt: { gte: new Date() } }
 					},
-					include: {
-						discount: true
-					},
-					orderBy: {
-						priority: 'asc'
-					}
+					include: { discount: true },
+					orderBy: { priority: 'asc' as const }
 				},
-				category: true
+				category: {
+					include: {
+						discountTargets: {
+							where: {
+								discount: { isArchived: false, expiresAt: { gte: new Date() } }
+							},
+							include: { discount: true },
+							orderBy: { priority: 'asc' as const }
+						}
+					}
+				}
 			},
 			take: +take || 15,
 			skip: +skip || 0,
@@ -264,23 +408,28 @@ export class ProductService {
 			]
 		})
 
+		const productsWithDiscounts = await Promise.all(
+			products.map((product) => this.getProductWithBestDiscount(product))
+		)
+
 		const count = await this.prisma.product.count({
 			where: {
 				AND: [
 					whereConditions,
 					categoryFilter,
 					onlyOriginalPrice ? { discountPrice: null } : {},
+					{ discountTargets: { some: { discountId } } },
 					{ isPublished: true },
 					{ isArchived: false }
 				]
 			}
 		})
 
-		return { items: products, count }
+		return { items: productsWithDiscounts, count }
 	}
 
 	async getArchive(params?: ProductParamsDto) {
-		const { name, categoryId, sortBy, orderBy, take, skip } = params
+		const { name, categoryId, type, sortBy, orderBy, take, skip } = params
 
 		const whereConditions = this.getWhereLayout(name)
 
@@ -296,33 +445,17 @@ export class ProductService {
 
 		const products = await this.prisma.product.findMany({
 			where: {
-				AND: [whereConditions, categoryFilter]
+				AND: [
+					whereConditions,
+					categoryFilter,
+					type === 'archive'
+						? { isArchived: true }
+						: type === 'unpublished'
+							? { isPublished: false }
+							: { isArchived: false, isPublished: true }
+				]
 			},
-			include: {
-				images: {
-					orderBy: {
-						sortOrder: 'asc'
-					}
-				},
-				discountTargets: {
-					where: {
-						discount: {
-							isArchived: false,
-							isPublished: true,
-							expiresAt: {
-								gte: new Date()
-							}
-						}
-					},
-					include: {
-						discount: true
-					},
-					orderBy: {
-						priority: 'asc'
-					}
-				},
-				category: true
-			},
+			include: this.defaultProductInclude,
 			take: +take || 15,
 			skip: +skip || 0,
 			orderBy: [
@@ -331,13 +464,17 @@ export class ProductService {
 			]
 		})
 
+		const productsWithDiscounts = await Promise.all(
+			products.map((product) => this.getProductWithBestDiscount(product))
+		)
+
 		const count = await this.prisma.product.count({
 			where: {
 				AND: [whereConditions, categoryFilter]
 			}
 		})
 
-		return { items: products, count }
+		return { items: productsWithDiscounts, count }
 	}
 
 	async getDiscount(params?: ProductParamsDto) {
@@ -360,35 +497,37 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryFilter,
-					{ discountPrice: { not: null } },
+					{
+						OR: [
+							{ discountPrice: { not: null } },
+							{ discountTargets: { some: {} } },
+							{ category: { discountTargets: { some: {} } } }
+						]
+					},
 					{ isPublished: true },
 					{ isArchived: false }
 				]
 			},
 			include: {
-				images: {
-					orderBy: {
-						sortOrder: 'asc'
-					}
-				},
+				images: { orderBy: { sortOrder: 'asc' as const } },
 				discountTargets: {
 					where: {
-						discount: {
-							isArchived: false,
-							isPublished: true,
-							expiresAt: {
-								gte: new Date()
-							}
-						}
+						discount: { isArchived: false, expiresAt: { gte: new Date() } }
 					},
-					include: {
-						discount: true
-					},
-					orderBy: {
-						priority: 'asc'
-					}
+					include: { discount: true },
+					orderBy: { priority: 'asc' as const }
 				},
-				category: true
+				category: {
+					include: {
+						discountTargets: {
+							where: {
+								discount: { isArchived: false, expiresAt: { gte: new Date() } }
+							},
+							include: { discount: true },
+							orderBy: { priority: 'asc' as const }
+						}
+					}
+				}
 			},
 			take: +take || 15,
 			skip: +skip || 0,
@@ -397,6 +536,10 @@ export class ProductService {
 				{ id: 'asc' }
 			]
 		})
+
+		const productsWithDiscounts = await Promise.all(
+			products.map((product) => this.getProductWithBestDiscount(product))
+		)
 
 		const count = await this.prisma.product.count({
 			where: {
@@ -410,7 +553,7 @@ export class ProductService {
 			}
 		})
 
-		return { items: products, count }
+		return { items: productsWithDiscounts, count }
 	}
 
 	async getSimilar(id: string, params?: { take: number }) {
@@ -431,38 +574,18 @@ export class ProductService {
 					}
 				]
 			},
-			include: {
-				images: {
-					orderBy: {
-						sortOrder: 'asc'
-					}
-				},
-				discountTargets: {
-					where: {
-						discount: {
-							isArchived: false,
-							isPublished: true,
-							expiresAt: {
-								gte: new Date()
-							}
-						}
-					},
-					include: {
-						discount: true
-					},
-					orderBy: {
-						priority: 'asc'
-					}
-				},
-				category: true
-			},
+			include: this.defaultProductInclude,
 			take: +take || 10,
 			orderBy: {
 				createdAt: 'desc'
 			}
 		})
 
-		const items = products.filter((item) => item.id !== product.id)
+		const items = await Promise.all(
+			products
+				.filter((item) => item.id !== product.id)
+				.map((product) => this.getProductWithBestDiscount(product))
+		)
 
 		const count = await this.prisma.product.count({
 			where: {
@@ -485,68 +608,27 @@ export class ProductService {
 	async getByIds(ids: string[]) {
 		const products = await this.prisma.product.findMany({
 			where: { id: { in: ids } },
-			include: {
-				images: {
-					orderBy: {
-						sortOrder: 'asc'
-					}
-				},
-				discountTargets: {
-					where: {
-						discount: {
-							isArchived: false,
-							isPublished: true,
-							expiresAt: {
-								gte: new Date()
-							}
-						}
-					},
-					include: {
-						discount: true
-					},
-					orderBy: {
-						priority: 'asc'
-					}
-				},
-				category: true
-			}
+			include: this.defaultProductInclude,
+			orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
 		})
+
+		const productsWithDiscounts = await Promise.all(
+			products.map((product) => this.getProductWithBestDiscount(product))
+		)
 
 		const count = await this.prisma.product.count({
 			where: { id: { in: ids } }
 		})
 
-		return { items: products, count }
+		return { items: productsWithDiscounts, count }
 	}
 
 	async getOne(id: string) {
 		const product = await this.prisma.product.findFirst({
-			where: { OR: [{ id }, { slug: id }] },
-			include: {
-				images: {
-					orderBy: {
-						sortOrder: 'asc'
-					}
-				},
-				discountTargets: {
-					where: {
-						discount: {
-							isArchived: false,
-							isPublished: true,
-							expiresAt: {
-								gte: new Date()
-							}
-						}
-					},
-					include: {
-						discount: true
-					},
-					orderBy: {
-						priority: 'asc'
-					}
-				},
-				category: true
-			}
+			where: {
+				OR: [{ id }, { slug: id }]
+			},
+			include: this.defaultProductInclude
 		})
 
 		if (!product) throw new NotFoundException('Товар не найден')
@@ -557,7 +639,7 @@ export class ProductService {
 			if (!categories)
 				throw new NotFoundException('Категории товара не найдены')
 
-			const category = this.productCategoryService.getProductCategoryTree(
+			const category = this.productCategoryService.getTreeToProductCategory(
 				categories,
 				product.category.id
 			)
@@ -565,7 +647,7 @@ export class ProductService {
 			product.category = category
 		}
 
-		return product
+		return this.getProductWithBestDiscount(product)
 	}
 
 	async getTotal() {

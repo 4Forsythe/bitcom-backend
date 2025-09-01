@@ -211,7 +211,7 @@ export class AuthService {
 
 		res.cookie(this.REFRESH_TOKEN_NAME, refreshToken, {
 			httpOnly: true,
-			secure: this.COOKIE_SECURE || true /* true - только для https */,
+			secure: this.COOKIE_SECURE ?? true /* true - только для https */,
 			domain: this.configService.get('SITE_DOMAIN'),
 			expires: expiresIn,
 			sameSite: 'lax'
@@ -221,7 +221,7 @@ export class AuthService {
 	removeRefreshToken(res: Response) {
 		res.cookie(this.REFRESH_TOKEN_NAME, '', {
 			httpOnly: true,
-			secure: this.COOKIE_SECURE || true /* true - только для https */,
+			secure: this.COOKIE_SECURE ?? true /* true - только для https */,
 			domain: this.configService.get('SITE_DOMAIN'),
 			expires: new Date(0),
 			sameSite: 'lax'

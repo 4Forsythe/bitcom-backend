@@ -3,8 +3,8 @@ import * as path from 'path'
 import * as sharp from 'sharp'
 import { Workbook, type Worksheet } from 'exceljs'
 
-import type { ProductType } from 'src/product/types/product.types'
-import type { ProductCategoryWithChildren } from 'src/product-category/product-category.types'
+import type { ProductWithImagesAndCategories } from 'src/product/types/product.types'
+import type { ProductCategoryWithChildren } from 'src/product-category/types/product-category.types'
 
 const fileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
@@ -12,7 +12,7 @@ async function renderCategoryTree(
 	workbook: Workbook,
 	sheet: Worksheet,
 	category: ProductCategoryWithChildren,
-	productMapping: Record<string, ProductType[]>,
+	productMapping: Record<string, ProductWithImagesAndCategories[]>,
 	deep: number = 0
 ) {
 	const row = sheet.addRow([`${'  '.repeat(deep)}${category.name}`])
@@ -101,7 +101,7 @@ function toArrayBuffer(buffer: Buffer) {
 export async function generateExcelWorkbook(
 	workbook: Workbook,
 	categories: ProductCategoryWithChildren[],
-	products: ProductType[]
+	products: ProductWithImagesAndCategories[]
 ) {
 	const sheet = workbook.addWorksheet('sheet')
 
@@ -152,7 +152,7 @@ export async function generateExcelWorkbook(
 	sheet.getColumn('E').numFmt = '#,##0.00'
 	sheet.getColumn('F').numFmt = '#,##0.00'
 
-	const productMapping: Record<string, ProductType[]> = {}
+	const productMapping: Record<string, ProductWithImagesAndCategories[]> = {}
 
 	for (const product of products) {
 		if (!product.category.id) continue

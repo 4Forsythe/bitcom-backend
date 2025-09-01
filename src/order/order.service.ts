@@ -179,7 +179,28 @@ export class OrderService {
 		const response = await this.prisma.order.findUnique({
 			where: { id: order.id },
 			include: {
-				items: { include: { product: { include: { category: true } } } }
+				items: {
+					include: {
+						product: {
+							include: {
+								discountTargets: {
+									include: {
+										discount: true
+									}
+								},
+								category: {
+									include: {
+										discountTargets: {
+											include: {
+												discount: true
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		})
 
@@ -188,14 +209,46 @@ export class OrderService {
 			.toString()
 			.slice(-8)
 
-		const items = response.items.map((item) => ({
-			count: item.count,
-			name: item.product.name,
-			barcode: item.product.sku.join(', '),
-			price: item.product.discountPrice
-				? String(item.product.discountPrice)
-				: String(item.product.price)
-		}))
+		const items = response.items.map((item) => {
+			const isDiscountAvailable =
+				item.product.discountTargets.length > 0
+					? new Date(item.product.discountTargets[0].discount.expiresAt) >
+						new Date()
+					: item.product.category.discountTargets.length > 0
+						? new Date(
+								item.product.category.discountTargets[0].discount.expiresAt
+							) > new Date()
+						: null
+
+			const discountTarget = isDiscountAvailable
+				? item.product.discountTargets.length > 0
+					? {
+							type: item.product.discountTargets[0].discount.type,
+							amount: item.product.discountTargets[0].discount.amount
+						}
+					: item.product.category.discountTargets.length > 0
+						? {
+								type: item.product.category.discountTargets[0].discount.type,
+								amount: item.product.category.discountTargets[0].discount.amount
+							}
+						: null
+				: null
+
+			const discountValue = discountTarget
+				? Number(item.product.price) -
+					(Number(item.product.price) / 100) * Number(discountTarget.amount)
+				: item.product.discountPrice
+					? Number(item.product.discountPrice)
+					: Number(item.product.price)
+
+			return {
+				id: item.product.slug,
+				count: item.count,
+				name: item.product.name,
+				barcode: item.product.sku.join(', '),
+				price: new Intl.NumberFormat('ru-RU').format(discountValue)
+			}
+		})
 
 		if (response.status === OrderStatus.CREATED) {
 			await sendMail({
@@ -233,9 +286,9 @@ export class OrderService {
 
 				🛍️ <u>Список товаров</u>:
 
-				${items.map((item) => `> ${item.name} — ${item.count} шт.`).join('\n')}
+				${items.map((item) => `> ${item.count} шт. <a href="https://bitcom63.ru/product/${item.id}">${item.name}</a> — ${item.price} руб.`).join('\n')}
 
-				<b>Итоговая сумма</b>: ${response.total} ₽
+				<b>Итоговая сумма</b>: ${new Intl.NumberFormat('ru-RU').format(Number(response.total))} ₽
 
 				<blockquote>Это сообщение было продублировано с контактной почты <b>${this.RECIPIENT_EMAIL}</b></blockquote>
 			`
@@ -247,7 +300,7 @@ export class OrderService {
 
 			if (user && user.isSubscribed) {
 				await sendMail({
-					to: user.email,
+					to: customerEmail,
 					subject: 'Ваш заказ создан',
 					html: {
 						path: 'src/templates/order-notification.template.html',
