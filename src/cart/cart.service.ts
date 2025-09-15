@@ -149,7 +149,7 @@ export class CartService {
 
 		await this.prisma.cart.update({
 			where: { id: cart.id },
-			data: { user: { connect: { id: userId } }, total },
+			data: { ...(userId && { user: { connect: { id: userId } } }), total },
 			include: {
 				items: {
 					include: {
@@ -466,7 +466,7 @@ export class CartService {
 
 		await this.prisma.cart.update({
 			where: { id: cart.id },
-			data: { user: { connect: { id: userId } }, total },
+			data: { ...(userId && { user: { connect: { id: userId } } }), total },
 			include: {
 				items: {
 					include: {
@@ -562,7 +562,7 @@ export class CartService {
 
 		await this.prisma.cart.update({
 			where: { id: cart.id },
-			data: { user: { connect: { id: userId } }, total },
+			data: { ...(userId && { user: { connect: { id: userId } } }), total },
 			include: {
 				items: {
 					include: {
