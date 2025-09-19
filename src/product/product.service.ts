@@ -1,4 +1,5 @@
 import * as path from 'path'
+import * as NodeCache from 'node-cache'
 import { Response } from 'express'
 import {
 	Injectable,
@@ -27,6 +28,7 @@ import {
 	ProductWithDiscountTargets
 } from './types/product.types'
 
+const CACHE_TLL_VALUE = 3600
 const imageFileDir = path.join(process.env.FILE_STORAGE_URL, 'static')
 
 @Injectable()
@@ -35,6 +37,8 @@ export class ProductService {
 		private productCategoryService: ProductCategoryService,
 		private prisma: PrismaService
 	) {}
+
+	private cache = new NodeCache({ stdTTL: CACHE_TLL_VALUE })
 
 	private defaultProductInclude = {
 		images: { orderBy: { sortOrder: 'asc' as const } },
@@ -655,28 +659,37 @@ export class ProductService {
 	}
 
 	async getXLSX(res: Response) {
-		const workbook = new Workbook()
+		let fileBuffer = this.cache.get<Buffer>('products-xlsx')
 
-		const categories = await this.productCategoryService.getAll({
-			flat: false
-		})
+		if (!fileBuffer) {
+			const workbook = new Workbook()
 
-		const products = await this.prisma.product.findMany({
-			where: {
-				isPublished: true,
-				isArchived: false
-			},
-			include: {
-				images: true,
-				category: true
-			}
-		})
+			const categories = await this.productCategoryService.getAll({
+				flat: false
+			})
 
-		await generateExcelWorkbook(
-			workbook,
-			categories.items as ProductCategoryWithChildren[],
-			products
-		)
+			const products = await this.prisma.product.findMany({
+				where: {
+					isPublished: true,
+					isArchived: false
+				},
+				include: {
+					images: true,
+					category: true
+				}
+			})
+
+			await generateExcelWorkbook(
+				workbook,
+				categories.items as ProductCategoryWithChildren[],
+				products
+			)
+
+			const uintArray = await workbook.xlsx.writeBuffer()
+			fileBuffer = Buffer.from(uintArray)
+
+			this.cache.set('products-xlsx', fileBuffer)
+		}
 
 		res.setHeader(
 			'Content-Type',
@@ -684,9 +697,7 @@ export class ProductService {
 		)
 		res.setHeader('Content-Disposition', 'attachment; filename=products.xlsx')
 
-		await workbook.xlsx.write(res)
-
-		res.end()
+		res.end(fileBuffer)
 	}
 
 	async getAllForSitemap() {

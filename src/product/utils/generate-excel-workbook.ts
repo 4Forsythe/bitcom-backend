@@ -15,6 +15,17 @@ async function renderCategoryTree(
 	productMapping: Record<string, ProductWithImagesAndCategories[]>,
 	deep: number = 0
 ) {
+	const products = productMapping[category.id] || []
+
+	const hasChildrenProducts = category.children?.some(
+		(child) => (productMapping[child.id]?.length || 0) > 0
+	)
+
+	// Заглушка, если товары для категории не найдены
+	if (products.length === 0 && !hasChildrenProducts) {
+		return
+	}
+
 	const row = sheet.addRow([`${'  '.repeat(deep)}${category.name}`])
 
 	row.font = { bold: true }
@@ -31,8 +42,6 @@ async function renderCategoryTree(
 	})
 
 	sheet.mergeCells(row.number, 1, row.number, 6)
-
-	const products = productMapping[category.id] || []
 
 	for (const product of products) {
 		try {
