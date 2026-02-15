@@ -421,10 +421,16 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryFilter,
-					onlyOriginalPrice ? { discountPrice: null } : {},
-					{ discountTargets: { some: { discountId } } },
+					onlyOriginalPrice
+						? {
+								discountPrice: null,
+								discountTargets: { none: {} },
+								category: { discountTargets: { none: {} } }
+							}
+						: {},
+					discountId ? { discountTargets: { some: { discountId } } } : {},
 					{ isPublished: true },
-					{ isArchived: false }
+					!discountId ? { isArchived: false } : {}
 				]
 			}
 		})
@@ -474,7 +480,15 @@ export class ProductService {
 
 		const count = await this.prisma.product.count({
 			where: {
-				AND: [whereConditions, categoryFilter]
+				AND: [
+					whereConditions,
+					categoryFilter,
+					type === 'archive'
+						? { isArchived: true }
+						: type === 'unpublished'
+							? { isPublished: false }
+							: { isArchived: false, isPublished: true }
+				]
 			}
 		})
 
@@ -550,7 +564,13 @@ export class ProductService {
 				AND: [
 					whereConditions,
 					categoryFilter,
-					{ discountPrice: { not: null } },
+					{
+						OR: [
+							{ discountPrice: { not: null } },
+							{ discountTargets: { some: {} } },
+							{ category: { discountTargets: { some: {} } } }
+						]
+					},
 					{ isPublished: true },
 					{ isArchived: false }
 				]
